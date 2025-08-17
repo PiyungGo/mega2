@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://btl5wtipbtsmf"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="Label" type="Label" parent="."]
+offset_left = 239.54
+offset_top = 177.165
+offset_right = 279.54
+offset_bottom = 200.165
+text = "I na Hee"

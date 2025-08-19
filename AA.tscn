@@ -1,11 +1,7 @@
-[gd_scene format=3 uid="uid://doaj3rleevhtb"]
+[gd_scene format=3 uid="uid://d4g0s5akkk68i"]
 
-[node name="Node2D" type="Node2D"]
+[node name="Main" type="Node2D"]
 
-[node name="Label" type="Label" parent="."]
-offset_left = 603.0
-offset_top = 183.0
-offset_right = 721.0
-offset_bottom = 232.0
-text = "sa was dee kub khon thai
-"
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]

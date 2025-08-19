@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://djwjy7vrbuv7s"]
+
+[ext_resource type="Texture2D" uid="uid://b4bohi6vf6l8e" path="res://Asset_UWU/S__4505603.jpg" id="1_psm7c"]
+[ext_resource type="Script" uid="uid://dm6k4ucqo00i1" path="res://Utolis.gd" id="2_8l818"]
+
+[node name="Board" type="Sprite2D"]
+texture = ExtResource("1_psm7c")
+script = ExtResource("2_8l818")
+
+[node name="Pieces" type="Node2D" parent="."]
+
+[node name="Dots" type="Node2D" parent="."]
+
+[node name="Turn" type="Sprite2D" parent="."]

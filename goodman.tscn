@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://cwc1hpl016hyd"]
+
+[ext_resource type="Texture2D" uid="uid://f7g4wcb3t3a4" path="res://Asset_UWU/S__5128201.png" id="1_2heid"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_apjsj"]
+size = Vector2(90, 188)
+
+[node name="Goodman" type="CharacterBody2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.1175, 0.1175)
+texture = ExtResource("1_2heid")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_apjsj")

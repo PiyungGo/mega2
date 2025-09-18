@@ -3,5 +3,6 @@
 [node name="Main" type="Node2D"]
 
 [node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.485, 0.485)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]

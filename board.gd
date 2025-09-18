@@ -42,7 +42,7 @@ func _input(event):
 			print(var1, var2)
 			
 func is_mouse_out():
-	if get_global_mouse_position().x < 0 || get_global_mouse_position().x > 6400 || get_global_mouse_position().y < 0 ||get_global_mouse_position().y > 6400: return true
+	if get_global_mouse_position().x < 0 || get_global_mouse_position().x > 6400 || get_global_mouse_position().y > 648 ||get_global_mouse_position().y < -5752: return true
 	return false
 
 func display_board():

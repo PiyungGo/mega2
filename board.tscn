@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=4 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://b4bohi6vf6l8e" path="res://Asset_UWU/S__4505603.jpg" id="1_psm7c"]
-[ext_resource type="Script" uid="uid://dm6k4ucqo00i1" path="res://Utolis.gd" id="2_8l818"]
+[ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
+[ext_resource type="Texture2D" uid="uid://dpb1r6qevmvfj" path="res://Asset_UWU/S__5128198.png" id="3_jqgjh"]
 
 [node name="Board" type="Sprite2D"]
 texture = ExtResource("1_psm7c")
@@ -12,3 +13,19 @@ script = ExtResource("2_8l818")
 [node name="Dots" type="Node2D" parent="."]
 
 [node name="Turn" type="Sprite2D" parent="."]
+
+[node name="S5128198" type="Sprite2D" parent="."]
+position = Vector2(-472, 256)
+scale = Vector2(0.06625, 0.0813483)
+
+[node name="S5128199" type="Sprite2D" parent="."]
+position = Vector2(-271.5, 369)
+scale = Vector2(0.45625, 0.56625)
+
+[node name="S5128200" type="Sprite2D" parent="."]
+position = Vector2(-227, 209)
+scale = Vector2(0.05875, 0.05875)
+texture = ExtResource("3_jqgjh")
+
+[node name="S5128209" type="Sprite2D" parent="."]
+position = Vector2(-791, 3)

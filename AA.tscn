@@ -3,6 +3,8 @@
 [node name="Main" type="Node2D"]
 
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(0.485, 0.485)
+position = Vector2(17, -2146)
+anchor_mode = 0
+zoom = Vector2(0.23, 0.23)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]

@@ -1,11 +1,11 @@
 extends Sprite2D
 
 const BOARD_SIZE = 8
-const cell_width = 18
+const cell_width = 800
 
 const texture_holder = preload("res://texture_holder.tscn")
 
-const good_bishop = preload("res://Asset_UWU/S__5128198.png")
+const good_bishop = preload("res://Asset_UWU/S__5128201.png")
 const call_bishop = preload("res://Asset_UWU/S__5128204.png")
 const hacker_bishop = preload("res://Asset_UWU/S__5128209.png")
 const police_bishop = preload("res://Asset_UWU/character/S__5128217_0.png")
@@ -32,6 +32,18 @@ func _ready() :
 	board.append([3,0,0,0,0,0,0,4])
 	
 	display_board()
+	
+func _input(event):
+	if event is InputEventMouseButton && event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if is_mouse_out(): return
+			var var1 = snapped(get_global_mouse_position().x, 0) / cell_width
+			var var2 = abs(snapped(get_global_mouse_position().y, 0)) / cell_width
+			print(var1, var2)
+			
+func is_mouse_out():
+	if get_global_mouse_position().x < 0 || get_global_mouse_position().x > 6400 || get_global_mouse_position().y < 0 ||get_global_mouse_position().y > 6400: return true
+	return false
 
 func display_board():
 	for i in BOARD_SIZE:

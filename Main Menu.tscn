@@ -1,13 +1,29 @@
-[gd_scene load_steps=5 format=3 uid="uid://5vh0in8ttjl2"]
+[gd_scene load_steps=12 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
+[ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
+[ext_resource type="Texture2D" uid="uid://2tku10ksyi7n" path="res://Gemini_Generated_Image_1hkgc71hkgc71hkg.png" id="2_xwd2w"]
+[ext_resource type="Script" uid="uid://h22brvio2otb" path="res://audio_control.gd" id="3_i5qic"]
+[ext_resource type="Script" uid="uid://70urtdgl72k1" path="res://fullscreen_control.gd" id="4_12kdf"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_5b7ti"]
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_wfgb2"]
+texture = ExtResource("2_xwd2w")
+modulate_color = Color(0.741824, 0.405744, 0.742671, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_dvdtt"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7yr4w"]
 bg_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_dvdtt"]
+color = Color(4.90934e-06, 0.667308, 0.815247, 0.87451)
+thickness = 8
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_i5qic"]
+color = Color(0.951397, 0, 0.140215, 1)
+thickness = 8
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -27,25 +43,16 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxTexture_5b7ti")
 
-[node name="Label" type="Label" parent="Panel"]
+[node name="Panel2" type="Panel" parent="Panel"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -273.0
-offset_top = -244.0
-offset_right = 273.0
-offset_bottom = -120.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 80
-text = "Money Hunt"
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_styles/panel = SubResource("StyleBoxTexture_wfgb2")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="Main button" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -60,7 +67,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="Button" type="Button" parent="VBoxContainer"]
+[node name="Button" type="Button" parent="Main button"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -75,7 +82,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "start
 "
 
-[node name="Button2" type="Button" parent="VBoxContainer"]
+[node name="Button2" type="Button" parent="Main button"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -87,10 +94,10 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
 theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
-text = "creat
+text = "option
 "
 
-[node name="Button3" type="Button" parent="VBoxContainer"]
+[node name="Button3" type="Button" parent="Main button"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -102,8 +109,126 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
 theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
-text = "setting"
+text = "exit"
 
-[connection signal="pressed" from="VBoxContainer/Button" to="." method="_on_Start_pressed"]
-[connection signal="pressed" from="VBoxContainer/Button2" to="." method="_on_Creat_pressed"]
-[connection signal="pressed" from="VBoxContainer/Button3" to="." method="_on_Setting_pressed"]
+[node name="Label" type="Label" parent="Main button"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Main button/Label"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -337.0
+offset_top = -535.5
+offset_right = 337.0
+offset_bottom = -398.5
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 100
+text = "MONEY HUNT"
+
+[node name="780006338_710747(online-audio-converter_com)" type="AudioStreamPlayer" parent="Main button"]
+stream = ExtResource("2_i5qic")
+autoplay = true
+bus = &"Music"
+
+[node name="option" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -384.5
+offset_top = -182.5
+offset_right = 384.5
+offset_bottom = 300.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="option"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -397.5
+offset_right = 402.5
+offset_bottom = 107.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 80
+text = "option"
+horizontal_alignment = 1
+
+[node name="Back" type="Button" parent="option"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -198.5
+offset_top = -99.0
+offset_right = 198.5
+offset_bottom = -13.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="AudioControl" type="HSlider" parent="option"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -319.0
+offset_top = 104.5
+offset_right = 342.0
+offset_bottom = 160.5
+grow_horizontal = 2
+theme_override_styles/slider = SubResource("StyleBoxLine_dvdtt")
+theme_override_styles/grabber_area = SubResource("StyleBoxLine_i5qic")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxLine_i5qic")
+max_value = 1.0
+step = 0.05
+value = 1.0
+script = ExtResource("3_i5qic")
+audio_bus_name = "Music"
+
+[node name="FullscreenControl" type="CheckButton" parent="option"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -318.5
+offset_top = -33.5
+offset_right = 333.5
+offset_bottom = 34.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 30
+button_pressed = true
+text = "Full screen"
+script = ExtResource("4_12kdf")
+
+[connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
+[connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
+[connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
+[connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
+[connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="option/Back" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
+[connection signal="value_changed" from="option/AudioControl" to="option/AudioControl" method="_on_value_changed"]
+[connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]

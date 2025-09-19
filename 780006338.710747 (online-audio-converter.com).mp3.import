@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://b7irlesai8n8v"
+path="res://.godot/imported/780006338.710747 (online-audio-converter.com).mp3-dd2fe273b061d791c86201975f4c7cca.mp3str"
+
+[deps]
+
+source_file="res://780006338.710747 (online-audio-converter.com).mp3"
+dest_files=["res://.godot/imported/780006338.710747 (online-audio-converter.com).mp3-dd2fe273b061d791c86201975f4c7cca.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

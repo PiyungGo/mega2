@@ -1,7 +1,28 @@
-[gd_scene load_steps=3 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=24 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
+[ext_resource type="Texture2D" uid="uid://f7g4wcb3t3a4" path="res://Asset_UWU/S__5128201.png" id="4_65toc"]
+[ext_resource type="Texture2D" uid="uid://m3ervpblx1r" path="res://Asset_UWU/S__5128203.png" id="5_pwkvm"]
+[ext_resource type="Script" uid="uid://0v3stss7g4hy" path="res://Pieces.gd" id="7_8issi"]
+[ext_resource type="Texture2D" uid="uid://bdifnjy2us8nk" path="res://Asset_UWU/S__5128202.png" id="7_y7cv2"]
+[ext_resource type="Texture2D" uid="uid://dvxwescr6hpwa" path="res://Asset_UWU/S__5128200.png" id="8_5rfmq"]
+[ext_resource type="Texture2D" uid="uid://dpb1r6qevmvfj" path="res://Asset_UWU/S__5128198.png" id="9_mrqbj"]
+[ext_resource type="Texture2D" uid="uid://bj4fjr2vne5pr" path="res://Asset_UWU/S__5128204.png" id="10_d2oob"]
+[ext_resource type="Texture2D" uid="uid://bvysbjwhxn0y8" path="res://Asset_UWU/S__5128205.png" id="11_eq1pg"]
+[ext_resource type="Texture2D" uid="uid://cajhjqpesjiee" path="res://Asset_UWU/S__5128208.png" id="12_ccaoj"]
+[ext_resource type="Texture2D" uid="uid://cis1hjx0glomm" path="res://Asset_UWU/S__5128207.png" id="13_yqcr4"]
+[ext_resource type="Texture2D" uid="uid://blionw5735qth" path="res://Asset_UWU/S__5128206.png" id="14_hqp5w"]
+[ext_resource type="Texture2D" uid="uid://6klmwiq1b7jd" path="res://Asset_UWU/S__5128209.png" id="16_c0aiv"]
+[ext_resource type="Texture2D" uid="uid://dp86bhp0t2k61" path="res://Asset_UWU/S__5128213.png" id="17_1d1a4"]
+[ext_resource type="Texture2D" uid="uid://c02qgidt5o5aj" path="res://Asset_UWU/S__5128214.png" id="18_2yhae"]
+[ext_resource type="Texture2D" uid="uid://6lnrx5dndlm4" path="res://Asset_UWU/S__5128212.png" id="19_aoj51"]
+[ext_resource type="Texture2D" uid="uid://dsdbk5yt2njn2" path="res://Asset_UWU/S__5128211.png" id="20_m7p32"]
+[ext_resource type="Texture2D" uid="uid://ci0twm12krd4o" path="res://Asset_UWU/character/S__5128217_0.png" id="22_m2spp"]
+[ext_resource type="Texture2D" uid="uid://jnty4i2xacr8" path="res://Asset_UWU/character/S__5128223_0.png" id="23_vc6v2"]
+[ext_resource type="Texture2D" uid="uid://s8qtutxbd1fb" path="res://Asset_UWU/character/S__5128221_0.png" id="24_u3ggn"]
+[ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
+[ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
 
 [node name="Board" type="Sprite2D"]
 position = Vector2(3200, -2552)
@@ -10,6 +31,44 @@ script = ExtResource("2_8l818")
 
 [node name="Pieces" type="Node2D" parent="."]
 
+[node name="Good" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("4_65toc")
+tex_walk_up = ExtResource("5_pwkvm")
+tex_walk_down = ExtResource("9_mrqbj")
+tex_walk_left = ExtResource("7_y7cv2")
+tex_walk_right = ExtResource("8_5rfmq")
+
+[node name="Call" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("10_d2oob")
+tex_walk_up = ExtResource("11_eq1pg")
+tex_walk_down = ExtResource("12_ccaoj")
+tex_walk_left = ExtResource("13_yqcr4")
+tex_walk_right = ExtResource("14_hqp5w")
+
+[node name="Hacker" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("16_c0aiv")
+tex_walk_up = ExtResource("17_1d1a4")
+tex_walk_down = ExtResource("18_2yhae")
+tex_walk_left = ExtResource("19_aoj51")
+tex_walk_right = ExtResource("20_m7p32")
+
+[node name="Police" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("22_m2spp")
+tex_walk_up = ExtResource("23_vc6v2")
+tex_walk_down = ExtResource("24_u3ggn")
+tex_walk_left = ExtResource("25_3hc0m")
+tex_walk_right = ExtResource("26_6cqox")
+
 [node name="Dots" type="Node2D" parent="."]
 
 [node name="Turn" type="Sprite2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(-12808, -7196)
+offset = Vector2(-4.475, 0)
+ignore_rotation = false
+zoom = Vector2(-0.09, -0.09)

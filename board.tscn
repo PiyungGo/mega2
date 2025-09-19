@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=25 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
@@ -20,6 +20,7 @@
 [ext_resource type="Texture2D" uid="uid://dsdbk5yt2njn2" path="res://Asset_UWU/S__5128211.png" id="20_m7p32"]
 [ext_resource type="Texture2D" uid="uid://ci0twm12krd4o" path="res://Asset_UWU/character/S__5128217_0.png" id="22_m2spp"]
 [ext_resource type="Texture2D" uid="uid://jnty4i2xacr8" path="res://Asset_UWU/character/S__5128223_0.png" id="23_vc6v2"]
+[ext_resource type="PackedScene" uid="uid://ck0udfef8t2r5" path="res://DiceUI.tscn" id="24_mrqbj"]
 [ext_resource type="Texture2D" uid="uid://s8qtutxbd1fb" path="res://Asset_UWU/character/S__5128221_0.png" id="24_u3ggn"]
 [ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
@@ -28,6 +29,7 @@
 position = Vector2(3200, -2552)
 texture = ExtResource("1_psm7c")
 script = ExtResource("2_8l818")
+dice_ui_path = NodePath("CanvasLayer/Control")
 
 [node name="Pieces" type="Node2D" parent="."]
 
@@ -72,3 +74,13 @@ position = Vector2(-12808, -7196)
 offset = Vector2(-4.475, 0)
 ignore_rotation = false
 zoom = Vector2(-0.09, -0.09)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" parent="CanvasLayer" instance=ExtResource("24_mrqbj")]
+z_index = 1000
+
+[node name="Turn" type="Label" parent="CanvasLayer/Control"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0

@@ -1,0 +1,97 @@
+[gd_scene load_steps=2 format=3 uid="uid://ck0udfef8t2r5"]
+
+[ext_resource type="Script" uid="uid://ddbsedtrva6vi" path="res://DiceUI.gd" id="1_ksiod"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(1.3254, 1.3254)
+script = ExtResource("1_ksiod")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -126.0
+offset_top = -126.0
+offset_right = 126.0
+offset_bottom = 126.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -79.0
+offset_top = -108.0
+offset_right = 79.0
+offset_bottom = -85.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "ทอยเต๋าสุ่มแต้มเดินทาง"
+
+[node name="Result" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -3.14606
+offset_top = -74.4242
+offset_right = 42.8539
+offset_bottom = -47.4242
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(1.62432, 1.62432)
+horizontal_alignment = 3
+
+[node name="Rollbutton" type="Button" parent="Panel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -41.5
+offset_top = 61.0
+offset_right = 41.5
+offset_bottom = 92.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "สุ่ม"
+
+[node name="Face" type="TextureRect" parent="Panel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CloseBin" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 221.066
+offset_top = 9.80844
+offset_right = 239.066
+offset_bottom = 40.8084
+text = "X"

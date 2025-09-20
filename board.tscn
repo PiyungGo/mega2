@@ -29,6 +29,7 @@
 position = Vector2(3200, -2552)
 texture = ExtResource("1_psm7c")
 script = ExtResource("2_8l818")
+turn_label_path = NodePath("TurnLabel")
 dice_ui_path = NodePath("CanvasLayer/Control")
 
 [node name="Pieces" type="Node2D" parent="."]
@@ -80,7 +81,9 @@ zoom = Vector2(-0.09, -0.09)
 [node name="Control" parent="CanvasLayer" instance=ExtResource("24_mrqbj")]
 z_index = 1000
 
-[node name="Turn" type="Label" parent="CanvasLayer/Control"]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
+[node name="TurnLabel" type="Label" parent="."]
+offset_left = 3409.0
+offset_top = -210.0
+offset_right = 3449.0
+offset_bottom = -187.0
+scale = Vector2(17.4435, 17.4435)

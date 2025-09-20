@@ -20,6 +20,8 @@ extends Sprite2D
 @export var piece_scale_factor: float = 1.0     # ขยาย/ย่อหมากเพิ่มเติม
 @export var piece_y_offset: float = -2.0        # ยกขึ้นกันเท้าตกขอบ
 
+
+
 @onready var pieces: Node = $Pieces
 
 # ===== STATE =====
@@ -33,8 +35,20 @@ var selected_cell: Vector2i = Vector2i(-1, -1)
 var selected_piece: Sprite2D = null
 var reachable: Array[Vector2i] = []
 var parent_map: Dictionary = {}                 # key: Vector2i, val: Vector2i
-var piece_owner: Dictionary = {} 
+var piece_owner: Dictionary = {}
 var is_moving: bool = false
+# === Turn system ===
+var turn_order: Array[Sprite2D] = []
+var turn_idx: int = 0
+var active_piece: Sprite2D = null
+  # ชิ้นที่ได้เล่นในรอบนี้
+
+# ตำแหน่ง cell ของแต่ละชิ้น (อัปเดตทุกครั้งที่เดิน)
+var piece_cells: Dictionary = {}         # {Sprite2D: Vector2i}
+
+# ใช้ทำแสงกระพริบ
+var _glow_t: float = 0.0
+
 # สีกรอบตามผู้เล่น (Good, Call, Hacker, Police)
 const TURN_COLORS := [
     Color(1, 1, 0, 0.45),
@@ -50,8 +64,54 @@ func _ready() -> void:
     _rebuild_nodes_map()
     queue_redraw()
     _update_turn_ui()
+    _start_turns()
+# เพิ่มด้านบน (โซนตัวแปร)
 
-# ฟิตสไปรต์ให้พอดีช่องด้วย padding (เช่น 10%)
+
+
+func _update_turn_label() -> void:
+    if turn_label and active_piece:
+        turn_label.text = "ตอนนี้เป็นเทิร์นของ: %s" % active_piece.name
+
+func _active_player_index() -> int:
+    if active_piece == null: return 0
+    match active_piece.name:
+        "Good": return 0
+        "Call": return 1
+        "Hacker": return 2
+        "Police": return 3
+        _:
+            return 0
+
+
+func _start_turns() -> void:
+    var p = $Pieces
+    # ดึงเฉพาะตัวที่ต้องการจริง ๆ จาก children
+    var good  : Sprite2D = p.get_node("Good")
+    var call  : Sprite2D = p.get_node("Call")
+    var hack  : Sprite2D = p.get_node("Hacker")
+    var police: Sprite2D = p.get_node("Police")
+
+    turn_order = [good, call, hack, police]
+    turn_order.shuffle()
+    _update_turn_label()
+    turn_idx = 0
+    active_piece = turn_order[turn_idx]
+    current_player = _active_player_index()
+    _update_turn_ui()             # เดิมที่ใช้ข้อความ Turn:
+
+    # กันพลาด
+    if active_piece == null:
+        push_error("active_piece is null (turn_order empty?)")
+        return
+
+    selected_piece = null
+    selected_cell  = Vector2i(-1, -1)
+    reachable.clear()
+
+    print("TURN ORDER =", turn_order.map(func(n): return n.name))
+    print("ACTIVE     =", active_piece.name)
+
 func _fit_sprite_to_cell(s: Sprite2D, padding: float = 0.10) -> void:
     if s == null or s.texture == null:
         return
@@ -82,18 +142,23 @@ func _snap_and_fit_existing_pieces() -> void:
 
 # มุมซ้ายบนกระดาน (พิกัดโลก)
 func _board_top_left_global() -> Vector2:
-    var tex: Texture2D = texture
-    if tex == null:
+    if texture == null:
         return global_position
-    var size: Vector2 = tex.get_size() * scale
-    # Sprite2D วางตำแหน่งที่กึ่งกลางสไปรท์ -> ซ้ายบน = global - size/2
-    return global_position - size * 0.5
+    var size_g := texture.get_size() * scale
+    return global_position - size_g * 0.5
 
-func _cell_center_global(c: Vector2i) -> Vector2:
+func _cell_rect(c: Vector2i) -> Rect2:
+    var s := _cell_px()
+    var tl := _board_top_left_global() + Vector2(c.x * s, c.y * s)
+    return Rect2(tl, Vector2(s, s))
+
+func _cell_center(c: Vector2i) -> Vector2:
+    var s := _cell_px()
     return _board_top_left_global() + Vector2(
-        (c.x + 0.5) * CELL_SIZE,
-        (c.y + 0.5) * CELL_SIZE
+        (c.x + 0.5) * s,
+        (c.y + 0.5) * s
     )
+
 
 
 func _draw() -> void:
@@ -106,9 +171,16 @@ func _draw() -> void:
         draw_rect(rect, TURN_COLORS[current_player], true)
         draw_rect(rect, Color(0, 0, 0, 0.55), false, 2)
 
+    if piece_cells.has(active_piece):
+        selected_cell = piece_cells[active_piece]
+    else:
+        selected_cell = _pixel_to_cell(active_piece.global_position)
+
 # จุดขาวตำแหน่งที่เดินได้
+    # จุดขาวตำแหน่งที่เดินได้
     for c in reachable:
         draw_circle(_cell_center(c), dot_radius, Color(1, 1, 1, 0.9))
+
 
     
 func _unhandled_input(e: InputEvent) -> void:
@@ -142,16 +214,35 @@ func _unhandled_input(e: InputEvent) -> void:
             return
 
         # คลิกช่องปลายทางที่ไปได้ → เดิน
+        # คลิกช่องปลายทางที่ไปได้ → เดิน
         if selected_piece != null and _has_cell(reachable, cell):
+            # จุดเริ่มที่เชื่อถือได้
+            var start_cell: Vector2i = piece_cells.get(selected_piece, selected_cell)
+
             var path: Array[Vector2i] = _build_path(parent_map, cell)
-            await _move_piece_step_by_step(selected_piece, selected_cell, path)
-            selected_cell = cell
+            if path.is_empty():
+                return
+
+            await _move_piece_step_by_step(selected_piece, start_cell, path)
+            selected_cell = cell   # sync การเลือกกับตำแหน่งใหม่
             _end_turn()
             return
+
+
 
         # ไม่ใช่ปลายทาง → ลองเลือกตัวละครช่องนั้น
         _select_piece_at(cell)
         print("dice_ui=", dice_ui)
+
+# หาตัวหมาก (Sprite2D) ที่อยู่ใน cell ที่กำหนด
+func _get_piece_at(cell: Vector2i) -> Sprite2D:
+    if cell.y < 0 or cell.y >= board_nodes.size():
+        return null
+    var row: Array = board_nodes[cell.y]
+    if cell.x < 0 or cell.x >= row.size():
+        return null
+    return row[cell.x] as Sprite2D
+
 
 # === Turn system ===
 @export var turn_label_path: NodePath  # ลาก Label ที่ไว้โชว์เทิร์นมาใส่ได้ เช่น /root/Board/Turn
@@ -272,25 +363,57 @@ func _rebuild_nodes_map() -> void:
             var c: Vector2i = _pixel_to_cell(s.global_position)
             if _in_bounds(c):
                 board_nodes[c.y][c.x] = s
+    piece_cells.clear()
+    for y in range(BOARD_SIZE):
+        for x in range(BOARD_SIZE):
+            var s: Sprite2D = board_nodes[y][x]
+            if s != null:
+                piece_cells[s] = Vector2i(x, y)
+
+
+
+# ตอนเปิดเต๋า
+func _open_dice_panel_for_selected() -> void:
+    if dice_ui == null:
+        steps_for_current_piece = MAX_STEPS
+        _compute_reachable(selected_cell, steps_for_current_piece)
+        queue_redraw()
+        return
+
+    if not dice_ui.is_connected("rolled", Callable(self, "_on_dice_rolled")):
+        dice_ui.connect("rolled", Callable(self, "_on_dice_rolled"))
+    if not dice_ui.is_connected("closed", Callable(self, "_on_dice_closed")):
+        dice_ui.connect("closed", Callable(self, "_on_dice_closed"))
+
+    dice_open = true
+    dice_has_result = false
+    steps_for_current_piece = 0
+
+    dice_ui.mouse_filter = Control.MOUSE_FILTER_STOP  # << บังเมาส์เฉพาะตอนเปิด
+    dice_ui.open()
+
+
 
 # ====================================================================
 # SELECT / REACH
 # ====================================================================
 func _select_piece_at(cell: Vector2i) -> void:
-    var piece: Sprite2D = null
-    if cell.y >= 0 and cell.y < board_nodes.size():
-        var row: Array = board_nodes[cell.y]
-        if cell.x >= 0 and cell.x < row.size():
-            piece = row[cell.x] as Sprite2D
-    # หา piece จาก cell ตามที่คุณทำอยู่
-        if piece == null:
-            return
+    var piece := _get_piece_at(cell)
+    if piece == null:
+        return
 
-# อนุญาตเฉพาะชิ้นของ current_player
-        if piece_owner.has(piece):
-            var owner: int = int(piece_owner.get(piece, -1))
-            if owner != current_player:
-                return
+    # DEBUG: พิมพ์ชื่อไว้ดูว่ามันคลิกตัวไหน
+    print("click piece =", piece.name, "  active =", active_piece and active_piece.name)
+
+    # เลือกได้เฉพาะตัวที่เป็นคิว
+    if active_piece == null or piece != active_piece:
+        return
+
+    # ผ่านแล้ว -> เปิดหน้าเต๋า
+    selected_piece = piece
+    selected_cell  = cell
+    _open_dice_panel_for_selected()
+
 # (ถ้ายังไม่ได้ bind owner จะไม่บล็อก — แต่ในเกมจริงควร bind แล้ว)
 
 
@@ -317,8 +440,8 @@ func _select_piece_at(cell: Vector2i) -> void:
 
         
 func _on_dice_rolled(value: int) -> void:
-    steps_for_current_piece = value
-    _pending_show_moves = true
+    steps_for_current_piece = clamp(value, 1, MAX_STEPS)
+    dice_has_result = true
 
 # BFS แบบแมนฮัตตัน
 func _compute_reachable(start: Vector2i, steps: int) -> void:
@@ -369,82 +492,94 @@ func _move_piece_step_by_step(piece: Sprite2D, start_cell: Vector2i, path: Array
 
         cur = step_cell
 
+    board_nodes[start_cell.y][start_cell.x] = null
+    board_nodes[cur.y][cur.x] = piece
+    piece_cells[piece] = cur          # <- สำคัญมาก ใช้กับไฮไลท์เทิร์น
+
     if "set_idle" in piece:
         piece.set_idle()
 
-    # อัปเดตตาราง
-    board_nodes[start_cell.y][start_cell.x] = null
-    board_nodes[cur.y][cur.x] = piece
-
     is_moving = false
-    _end_turn()  # <<< จบตาที่นี่
 
 func _tween_move_one_cell(piece: Sprite2D, from: Vector2i, to: Vector2i) -> void:
-    var to_pos: Vector2 = _cell_center_global(to)
+    var to_pos := _cell_center(to)
+    var tw := create_tween()
+    tw.tween_property(piece, "global_position", to_pos, 0.25) \
+        .set_trans(Tween.TRANS_SINE) \
+        .set_ease(Tween.EASE_IN_OUT)
+    await tw.finished
 
-    # จุดเริ่มเอาจริงจากตำแหน่งปัจจุบันของชิ้น เพื่อไม่สะสม error
-    var tween := create_tween()
-    tween.tween_property(piece, "global_position", to_pos, 0.25)\
-        .set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-    await tween.finished
+
+
 
 
 
 func _end_turn() -> void:
-    # ล้างสถานะเลือก
+    # เคลียร์สถานะของเทิร์น
     selected_piece = null
-    selected_cell = Vector2i(-1, -1)
+    selected_cell  = Vector2i(-1, -1)
     reachable.clear()
     parent_map.clear()
+    active_piece = turn_order[turn_idx]
+    _update_turn_label()
+    queue_redraw()
+    dice_has_result = false
+    steps_for_current_piece = 0
+    dice_open = false
+    if dice_ui:
+        dice_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+    # ไปคนถัดไป (วน)
+    turn_idx = (turn_idx + 1) % turn_order.size()
+    active_piece = turn_order[turn_idx]
+    active_piece = turn_order[turn_idx]
+    current_player = _active_player_index()
+    _update_turn_ui()
     queue_redraw()
 
-    # สลับผู้เล่น
-    current_player = (current_player + 1) % players.size()
-    _update_turn_ui()
+
 
 
 # ====================================================================
 # DRAW
 # ====================================================================
 func _draw_selection() -> void:
-    if selected_cell == Vector2i(-1,-1):
+    if selected_cell == Vector2i(-1, -1):
         return
-    # ตำแหน่งมุมซ้ายบนของช่อง (GLOBAL)
-    var top_left_g: Vector2 = BOARD_OFFSET + Vector2(selected_cell.x, selected_cell.y) * float(CELL_SIZE)
-    # แปลงเป็น LOCAL ของกระดาน
-    var top_left_l: Vector2 = to_local(top_left_g)
-    # ขนาดช่องในหน่วย LOCAL (ชดเชย scale ของกระดาน)
-    var cell_size_l: Vector2 = Vector2(CELL_SIZE / max(0.0001, scale.x),
-                                       CELL_SIZE / max(0.0001, scale.y))
-    var r := Rect2(top_left_l, cell_size_l)
+    var r_g := _cell_rect(selected_cell)     # rect พิกัดจอ
+    var tl := to_local(r_g.position)         # แปลงเป็น local ของบอร์ด
+    var br := to_local(r_g.position + r_g.size)
+    var r  := Rect2(tl, br - tl)
+    draw_rect(r, Color(1,1,0,0.15), true)
+    draw_rect(r, Color(1,1,0,0.90), false, 2)
 
-    draw_rect(r, Color(1,1,0,0.15), true)      # พื้นเหลืองอ่อน
-    draw_rect(r, Color(1,1,0,0.9),  false, 2)  # เส้นขอบเหลือง
 
 
 func _draw_reachable_dots() -> void:
-    # รัศมีในหน่วย LOCAL (ชดเชย scale)
     var radius_l: float = min(float(CELL_SIZE) * 0.12, 45.0) / max(scale.x, scale.y)
 
     for c in reachable:
-        # จุดกึ่งกลางช่อง (GLOBAL) → LOCAL
-        var p_g: Vector2 = _cell_center(c)
-        var p_l: Vector2 = to_local(p_g)
+        var p_g: Vector2 = _cell_center(c)   # global
+        var p_l: Vector2 = to_local(p_g)     # แปลงเป็น local ของบอร์ด
         draw_circle(p_l, radius_l, Color(1,1,1,0.9))
+
+# ขนาดช่องในพิกัดจอ (global pixels)
+func _cell_px() -> float:
+    if texture == null:
+        return float(CELL_SIZE)  # เผื่อกรณีไม่มี texture
+    var size_g := texture.get_size() * scale     # ขนาดกระดานจริงบนจอ
+    return size_g.x / float(BOARD_SIZE)          # กว้าง/ช่อง
 
 
 # ====================================================================
 # HELPERS
 # ====================================================================
 func _pixel_to_cell(p: Vector2) -> Vector2i:
-    var local: Vector2 = (p - BOARD_OFFSET) / float(CELL_SIZE)
+    var s := _cell_px()
+    var top_left := _board_top_left_global()
+    var local := (p - top_left) / s
     return Vector2i(int(floor(local.x)), int(floor(local.y)))
 
-func _cell_center(c: Vector2i) -> Vector2:
-    return BOARD_OFFSET + Vector2(
-        c.x * CELL_SIZE + CELL_SIZE * 0.5,
-        c.y * CELL_SIZE + CELL_SIZE * 0.5
-    )
 
 func _neighbors4(c: Vector2i) -> Array[Vector2i]:
     return [
@@ -457,13 +592,6 @@ func _neighbors4(c: Vector2i) -> Array[Vector2i]:
 func _in_bounds(c: Vector2i) -> bool:
     return c.x >= 0 and c.x < BOARD_SIZE and c.y >= 0 and c.y < BOARD_SIZE
 
-func _cell_rect(c: Vector2i) -> Rect2:
-    var top_left: Vector2 = BOARD_OFFSET
-    var cell_size: float = CELL_SIZE
-    return Rect2(
-        top_left + Vector2(c.x * cell_size, c.y * cell_size),
-        Vector2(cell_size, cell_size)
-    )
 
 
 func _is_occupied(c: Vector2i) -> bool:
@@ -487,14 +615,32 @@ var dice_has_result: bool = false
 var _pending_show_moves: bool = false   # ← ใหม่: รอแสดงจุดหลังปิดหน้าต่าง
 
 func _on_dice_closed() -> void:
-    if _pending_show_moves and selected_cell != Vector2i(-1, -1):
-        _compute_reachable(selected_cell, steps_for_current_piece)
-        queue_redraw()
-        _pending_show_moves = false
+    dice_open = false
+
+    if active_piece == null:
+        return
+    if not dice_has_result:
+        return
+
+    # จุดเริ่มสำหรับคำนวณทางเดิน: เอาจาก piece_cells ถ้ามี
+    if piece_cells.has(active_piece):
+        selected_cell = piece_cells[active_piece]
+    else:
+        selected_cell = _pixel_to_cell(active_piece.global_position)
+
+    _compute_reachable(selected_cell, steps_for_current_piece)
+    queue_redraw()
+
+    if dice_ui:
+        dice_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-    print("rolled=", steps_for_current_piece)
-    print("closed: pending=", _pending_show_moves, " open=", dice_open)
+    print("dice closed, cell=", selected_cell, " steps=", steps_for_current_piece)
+    print("reachable=", reachable)
+
+
+
+
 
 # เปิด
 func _update_turn_ui() -> void:

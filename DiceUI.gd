@@ -19,79 +19,79 @@ var _final_value := 0
 var _has_result := false           # ← จะ true หลังสุ่มเสร็จ
 
 func _ready() -> void:
-    mouse_filter = Control.MOUSE_FILTER_STOP
-    focus_mode = Control.FOCUS_ALL
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	focus_mode = Control.FOCUS_ALL
 
-    hide()
-    title.text = title_text
-    result_label.text = ""
-    if roll_button and not roll_button.pressed.is_connected(_on_roll_pressed):
-        roll_button.pressed.connect(_on_roll_pressed)
+	hide()
+	title.text = title_text
+	result_label.text = ""
+	if roll_button and not roll_button.pressed.is_connected(_on_roll_pressed):
+		roll_button.pressed.connect(_on_roll_pressed)
 
-    if close_btn:
-        close_btn.visible = false
-        close_btn.disabled = false  # ✅ เปิดให้ใช้งาน
-        if not close_btn.pressed.is_connected(_on_close_pressed):
-            close_btn.pressed.connect(_on_close_pressed)
+	if close_btn:
+		close_btn.visible = false
+		close_btn.disabled = false  # ✅ เปิดให้ใช้งาน
+		if not close_btn.pressed.is_connected(_on_close_pressed):
+			close_btn.pressed.connect(_on_close_pressed)
 
 func open() -> void:
-    _is_rolling = false
-    _has_result = false
-    _final_value = 0
-    result_label.text = ""
-    if roll_button:
-        roll_button.disabled = false
-        roll_button.grab_focus()
-    if close_btn:
-        close_btn.visible = false
-    show()
+	_is_rolling = false
+	_has_result = false
+	_final_value = 0
+	result_label.text = ""
+	if roll_button:
+		roll_button.disabled = false
+		roll_button.grab_focus()
+	if close_btn:
+		close_btn.visible = false
+	show()
 
 func close() -> void:
-    hide()
-    emit_signal("closed")
+	hide()
+	emit_signal("closed")
 
 func _on_close_pressed() -> void:
-    # ปุ่ม X ใช้ได้เฉพาะหลังมีผลลัพธ์
-    if _has_result:
-        close()
+	# ปุ่ม X ใช้ได้เฉพาะหลังมีผลลัพธ์
+	if _has_result:
+		close()
 
 func _on_roll_pressed() -> void:
-    if _is_rolling: return
-    _is_rolling = true
-    if roll_button:
-        roll_button.disabled = true
-    randomize()
+	if _is_rolling: return
+	_is_rolling = true
+	if roll_button:
+		roll_button.disabled = true
+	randomize()
 
-    var elapsed := 0.0
-    while elapsed < roll_duration:
-        var v := randi_range(1, 6)
-        result_label.text = str(v)
-        await get_tree().create_timer(tick).timeout
-        elapsed += tick
+	var elapsed := 0.0
+	while elapsed < roll_duration:
+		var v := randi_range(1, 6)
+		result_label.text = str(v)
+		await get_tree().create_timer(tick).timeout
+		elapsed += tick
 
-    _final_value = randi_range(1, 6)
-    result_label.text = str(_final_value)
-    _is_rolling = false
-    _has_result = true
+	_final_value = randi_range(1, 6)
+	result_label.text = str(_final_value)
+	_is_rolling = false
+	_has_result = true
 
-    # โชว์ปุ่ม X เมื่อสุ่มเสร็จ
-    if close_btn:
-        close_btn.visible = true
-        close_btn.grab_focus()
+	# โชว์ปุ่ม X เมื่อสุ่มเสร็จ
+	if close_btn:
+		close_btn.visible = true
+		close_btn.grab_focus()
 
-    emit_signal("rolled", _final_value)
+	emit_signal("rolled", _final_value)
 
 # (ออปชัน) กด Esc เพื่อปิดเมื่อมีผลลัพธ์แล้ว
 func _unhandled_input(e: InputEvent) -> void:
-    if _has_result and e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
-        close()
+	if _has_result and e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+		close()
 
 # (ออปชัน) คลิกนอก Panel เพื่อปิด หลังมีผลลัพธ์แล้ว
 func _gui_input(event: InputEvent) -> void:
-    if not _has_result:
-        return
-    if event is InputEventMouseButton and event.pressed:
-        var gp: Vector2 = (event as InputEventMouseButton).global_position
-        var rect: Rect2 = panel.get_global_rect()
-        if not rect.has_point(gp):
-            close()
+	if not _has_result:
+		return
+	if event is InputEventMouseButton and event.pressed:
+		var gp: Vector2 = (event as InputEventMouseButton).global_position
+		var rect: Rect2 = panel.get_global_rect()
+		if not rect.has_point(gp):
+			close()

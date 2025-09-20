@@ -14,13 +14,31 @@ extends Sprite2D
 @export var tex_call:  Texture2D                # ใส่รูปตัว 2
 @export var tex_hack:  Texture2D                # ใส่รูปตัว 3
 @export var tex_pol:   Texture2D                # ใส่รูปตัว 4
+@export var WALK_POINT_RATE: int = 12
+
+
+@export var attack_bar_path: NodePath
+@onready var attack_bar: Control = get_node_or_null(attack_bar_path)
+@onready var attack_btn: Button = attack_bar.get_node_or_null("AttackButton")
+@onready var skip_btn: Button = attack_bar.get_node_or_null("SkipButton")
+
+var is_attack_phase: bool = false
+var _attack_targets: Array[Sprite2D] = []
+
 
 # แนบสคริปต์ท่าทาง (Piece.gd) อัตโนมัติ (ถ้าต้องการให้เปลี่ยนท่าเดิน)
 @export var piece_script: Script                # res://Piece.gd (ไม่บังคับ)
 @export var piece_scale_factor: float = 1.0     # ขยาย/ย่อหมากเพิ่มเติม
 @export var piece_y_offset: float = -2.0        # ยกขึ้นกันเท้าตกขอบ
 
+@export var hp_start: int = 1000
+@export var MoneyPanelScene: PackedScene
+# UI แสดงเงิน
+@export var money_panel_path: NodePath
+@onready var money_panel: Control = get_node_or_null(money_panel_path)
 
+# เก็บเงินของแต่ละตัวละคร (key = Sprite2D, value = int)
+var money_by_piece: Dictionary = {}     # { Sprite2D: int }
 
 @onready var pieces: Node = $Pieces
 
@@ -57,16 +75,63 @@ const TURN_COLORS := [
     Color(1, 0.3, 0.3, 0.45),
 ]
 
+# วางไว้บนสุดของไฟล์ (โซน CONFIG)
+const ATTACK_DIRS_4 := [
+    Vector2i(1,0), Vector2i(-1,0),
+    Vector2i(0,1), Vector2i(0,-1)
+]
+
+const ATTACK_DIRS_8 := [
+    Vector2i(1,0),  Vector2i(-1,0),
+    Vector2i(0,1),  Vector2i(0,-1),
+    Vector2i(1,1),  Vector2i(1,-1),
+    Vector2i(-1,1), Vector2i(-1,-1)
+]
+
+# เลือกว่าจะใช้โจมตี 4 หรือ 8 ทิศ
+const ATTACK_DIRS := ATTACK_DIRS_8
+
+
+
 func _ready() -> void:
     _calc_board_offset()
     _place_four_corners_by_name()     # ← วางมุมก่อน
     _snap_and_fit_existing_pieces()   # ← ฟิตขนาด + สแนปกลางช่อง (ยังคงอยู่)
     _rebuild_nodes_map()
+    _setup_money()       
+    _setup_owners_by_name()         # ← NEW
+    _update_money_ui()
     queue_redraw()
     _update_turn_ui()
     _start_turns()
 # เพิ่มด้านบน (โซนตัวแปร)
 
+    money_panel = get_node_or_null("CanvasLayer/MoneyPanel")
+    if money_panel == null:
+        money_panel = MoneyPanelScene.instantiate()
+        money_panel.name = "MoneyPanel"        # ชื่อคงที่
+        $CanvasLayer.add_child(money_panel)    # เพิ่มครั้งเดียวเท่านั้น
+    if money_panel:
+            money_panel.visible = true
+            money_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # ไม่บังคลิกกระดาน
+            
+    if attack_bar:
+        attack_bar.visible = false
+        if attack_btn and not attack_btn.is_connected("pressed", Callable(self, "_on_attack_pressed")):
+            attack_btn.pressed.connect(_on_attack_pressed)
+        if skip_btn and not skip_btn.is_connected("pressed", Callable(self, "_on_skip_pressed")):
+            skip_btn.pressed.connect(_on_skip_pressed)
+
+
+func _init_money_defaults() -> void:
+    var p := $Pieces
+    var good  : Sprite2D = p.get_node_or_null("Good")
+    var call  : Sprite2D = p.get_node_or_null("Call")
+    var hack  : Sprite2D = p.get_node_or_null("Hacker")
+    var pol   : Sprite2D = p.get_node_or_null("Police")
+    for s in [good, call, hack, pol]:
+        if s and not money_by_piece.has(s):
+            money_by_piece[s] = hp_start
 
 
 func _update_turn_label() -> void:
@@ -99,7 +164,7 @@ func _start_turns() -> void:
     active_piece = turn_order[turn_idx]
     current_player = _active_player_index()
     _update_turn_ui()             # เดิมที่ใช้ข้อความ Turn:
-
+    _update_money_ui()  
     # กันพลาด
     if active_piece == null:
         push_error("active_piece is null (turn_order empty?)")
@@ -184,56 +249,53 @@ func _draw() -> void:
 
     
 func _unhandled_input(e: InputEvent) -> void:
+    # ---------- หน้าต่างทอยเต๋า 'ปิด' อยู่ (โหมดปกติ) ----------
     if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
         var gpos: Vector2 = get_global_mouse_position()
-        var cell: Vector2i = _pixel_to_cell(gpos)
+        var cell: Vector2i = _pixel_to_cell(gpos)   # ← ประกาศที่นี่ก่อนใช้ทุกที่
 
-        # ---------- เมื่อหน้าต่างทอยเต๋าเปิดอยู่ ----------
-        if dice_open:
-            var clicked_cell := _pixel_to_cell(get_global_mouse_position())
-            if not _in_bounds(cell) or (selected_cell != Vector2i(-1,-1) and cell == selected_cell):
-                if dice_ui and dice_ui.visible:
-                    return
-                if is_moving:
-                    return
-
-            # 2) ยกเว้นพิเศษ: คลิกที่ "ช่องของตัวที่กำลังถูกเลือก" → ปิดหน้าต่างเหมือนกัน
-            if selected_cell != Vector2i(-1,-1) and cell == selected_cell:
-                if dice_ui: dice_ui.call("close")
-                dice_open = false
-                if dice_has_result:
-                    _compute_reachable(selected_cell, steps_for_current_piece)
-                    queue_redraw()
-                return
-
-            # 3) กรณีคลิกที่อื่นบนกระดาน ขณะหน้าต่างยังเปิด → ไม่ทำอะไร
-            return
-
-        # ---------- หน้าต่างทอยเต๋า 'ปิด' อยู่ (โหมดปกติ) ----------
         if not _in_bounds(cell):
             return
 
-        # คลิกช่องปลายทางที่ไปได้ → เดิน
-        # คลิกช่องปลายทางที่ไปได้ → เดิน
-        if selected_piece != null and _has_cell(reachable, cell):
-            # จุดเริ่มที่เชื่อถือได้
+        # คลิกปลายทางที่ไปได้ → เดิน
+        if selected_piece != null and steps_left > 0 and _has_cell(reachable, cell):
             var start_cell: Vector2i = piece_cells.get(selected_piece, selected_cell)
-
             var path: Array[Vector2i] = _build_path(parent_map, cell)
             if path.is_empty():
                 return
 
             await _move_piece_step_by_step(selected_piece, start_cell, path)
-            selected_cell = cell   # sync การเลือกกับตำแหน่งใหม่
-            _end_turn()
-            return
+
+            # sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
+            selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
+
+
+            # หักแต้มที่ใช้จริง
+            var used: int = path.size()
+            steps_left = max(steps_left - used, 0)
+
+            if steps_left > 0:
+                # ยังมีแต้มเหลือ → เดินต่อจากตำแหน่งปัจจุบัน
+                _compute_reachable(selected_cell, steps_left)
+                queue_redraw()
+                _refresh_attack_bar()
+                return
+            else:
+                # แต้มหมดแล้ว → เข้าสู่เฟสโจมตี/ข้าม
+                _start_attack_phase()
+                return
 
 
 
         # ไม่ใช่ปลายทาง → ลองเลือกตัวละครช่องนั้น
         _select_piece_at(cell)
-        print("dice_ui=", dice_ui)
 
+
+        
+        if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
+                    if active_piece != null:
+                        add_money(active_piece, -100)
+                    return
 # หาตัวหมาก (Sprite2D) ที่อยู่ใน cell ที่กำหนด
 func _get_piece_at(cell: Vector2i) -> Sprite2D:
     if cell.y < 0 or cell.y >= board_nodes.size():
@@ -242,6 +304,15 @@ func _get_piece_at(cell: Vector2i) -> Sprite2D:
     if cell.x < 0 or cell.x >= row.size():
         return null
     return row[cell.x] as Sprite2D
+
+func _update_skip_btn_text() -> void:
+    if skip_btn == null:
+        return
+    var refund: int = max(steps_left, 0) * WALK_POINT_RATE  # 1 แต้ม = 12
+    if refund > 0:
+        skip_btn.text = "ข้าม (+%d)" % refund
+    else:
+        skip_btn.text = "ข้าม"
 
 
 # === Turn system ===
@@ -254,11 +325,113 @@ var current_player: int = 0                            # เริ่มคน�
                      # Sprite2D -> player_index
 
 
-func _process(_delta: float) -> void:
-    if not dice_open and _pending_show_moves and selected_cell != Vector2i(-1,-1):
-        _compute_reachable(selected_cell, steps_for_current_piece)
-        queue_redraw()
-        _pending_show_moves = false
+func _process(delta: float) -> void:
+    if Input.is_action_just_pressed("ui_up") and active_piece != null:
+        _give(active_piece, 100)
+    elif Input.is_action_just_pressed("ui_down") and active_piece != null:
+        _pay(active_piece, 100)
+
+
+func _give(p: Sprite2D, amount: int) -> void:
+    money_by_piece[p] = money_by_piece.get(p, 0) + amount
+    _update_money_ui()          # ← เปลี่ยนมาเรียกอันนี้
+
+func _pay(p: Sprite2D, amount: int) -> void:
+    money_by_piece[p] = max(0, money_by_piece.get(p, 0) - amount)
+    if money_by_piece[p] <= 0:
+        _kill_piece(p)
+    _update_money_ui()          # ← เปลี่ยนมาเรียกอันนี้
+
+func _start_attack_phase() -> void:
+    is_attack_phase = true
+    reachable.clear()
+    parent_map.clear()
+    queue_redraw()
+
+    _attack_targets = _adjacent_enemies_of(active_piece)
+    if attack_bar: attack_bar.visible = true
+    if attack_btn: attack_btn.disabled = _attack_targets.is_empty()
+    if skip_btn:   skip_btn.disabled = false
+    _update_skip_btn_text()
+
+
+func _end_attack_phase() -> void:
+    is_attack_phase = false
+    _attack_targets.clear()
+    if attack_bar:
+        attack_bar.visible = false
+    _end_turn()    # ส่งเทิร์นต่อ
+
+
+
+func _adjacent_enemies_of(p: Sprite2D) -> Array[Sprite2D]:
+    var res: Array[Sprite2D] = []
+    if p == null or not piece_cells.has(p):
+        return res
+
+    var my_owner: int = piece_owner.get(p, _owner_from_name(p.name))
+    var c: Vector2i = piece_cells[p]
+
+    for d: Vector2i in ATTACK_DIRS:
+        var v: Vector2i = c + d
+        if not _in_bounds(v):
+            continue
+        var q: Sprite2D = _get_piece_at(v)
+        if q == null or q == p:
+            continue
+        var q_owner: int = piece_owner.get(q, _owner_from_name(q.name))
+        if q_owner != my_owner:
+            res.append(q)
+
+    return res
+
+
+func _refresh_attack_bar():
+    if attack_bar == null:
+        return
+
+    # หาศัตรูที่อยู่รอบตัว active_piece
+    _attack_targets = _adjacent_enemies_of(active_piece)
+
+    if attack_btn:
+        attack_btn.disabled = _attack_targets.is_empty()
+        _update_skip_btn_text() 
+
+    # คำนวณเงินคืนจากแต้มเหลือ
+    var refund: int = max(steps_left, 0) * 12
+
+    if skip_btn:
+        if refund > 0:
+            skip_btn.text = "ข้าม (+%d)" % refund
+        else:
+            skip_btn.text = "ข้าม"
+
+
+func _on_attack_pressed() -> void:
+    if _attack_targets.is_empty():
+        _end_attack_phase()
+        return
+    var target: Sprite2D = _attack_targets[0]   # TODO: ทำตัวเลือกเป้าในอนาคต
+    add_money(target, -250)                    # หัก 100 (ของคุณจัดการ kill เองอยู่แล้ว)
+    _end_attack_phase()
+
+func _on_skip_pressed() -> void:
+    # คิดเงินแลกแต้ม (1 แต้ม = 12)
+    var refund: int = max(steps_left, 0) * 12
+    if active_piece and refund > 0:
+        add_money(active_piece, refund)
+
+    # รีเซ็ตแต้มที่เหลือ
+    steps_left = 0
+
+    # ปิดแถบปุ่มแล้วจบเทิร์น
+    if is_attack_phase:
+        _end_attack_phase()   # ถ้าฟังก์ชันนี้ซ่อนแถบ + _end_turn() อยู่แล้ว ใช้อันนี้เลย
+    else:
+        if attack_bar:
+            attack_bar.visible = false
+        _end_turn()
+
 
 
 # ====================================================================
@@ -280,6 +453,20 @@ func _init_board_vals() -> void:
         if n is Sprite2D:
             piece_owner[n as Sprite2D] = int(mapping[name])
 
+func _owner_from_name(n: String) -> int:
+    match n:
+        "Good": return 0
+        "Call": return 1
+        "Hacker": return 2
+        "Police": return 3
+        _: return -1
+
+func _setup_owners_by_name() -> void:
+    piece_owner.clear()
+    for n in $Pieces.get_children():
+        if n is Sprite2D:
+            var s := n as Sprite2D
+            piece_owner[s] = _owner_from_name(s.name)
 
 # เติมเจ้าของจากตำแหน่งเกิด 4 มุม
 func _bind_piece_owners_from_corners() -> void:
@@ -369,6 +556,122 @@ func _rebuild_nodes_map() -> void:
             var s: Sprite2D = board_nodes[y][x]
             if s != null:
                 piece_cells[s] = Vector2i(x, y)
+# กำหนดเงินเริ่มต้นให้ทุกตัว
+    for n in pieces.get_children():
+        if n is Sprite2D:
+            money_by_piece[n] = hp_start
+    _update_money_ui()
+    _setup_money()
+func _update_money_ui() -> void:
+    if money_panel == null:
+        return
+
+    var get_label := func(name: String) -> Label:
+            return money_panel.get_node_or_null(name) as Label
+
+    var good  := $Pieces.get_node_or_null("Good")   as Sprite2D
+    var call  := $Pieces.get_node_or_null("Call")   as Sprite2D
+    var hack  := $Pieces.get_node_or_null("Hacker") as Sprite2D
+    var pol   := $Pieces.get_node_or_null("Police") as Sprite2D
+
+    var Lg := money_panel.get_node_or_null("MoneyGood")   as Label
+    var Lc := money_panel.get_node_or_null("MoneyCall")   as Label
+    var Lh := money_panel.get_node_or_null("MoneyHacker") as Label
+    var Lp := money_panel.get_node_or_null("MoneyPolice") as Label
+
+    if Lg and good: Lg.text = "Good : %d"   % money_by_piece.get(good, 0)
+    if Lc and call: Lc.text = "Call : %d"   % money_by_piece.get(call, 0)
+    if Lh and hack: Lh.text = "Hacker : %d" % money_by_piece.get(hack, 0)
+    if Lp and pol:  Lp.text = "Police : %d" % money_by_piece.get(pol, 0)
+
+
+func add_money(p: Sprite2D, delta: int) -> void:
+    if not money_by_piece.has(p):
+        money_by_piece[p] = hp_start
+    money_by_piece[p] += delta
+    if money_by_piece[p] <= 0:
+        _kill_piece(p)
+    _update_money_ui()
+
+
+
+
+func _kill_piece(p: Sprite2D) -> void:
+    # ลบจากบอร์ด & ข้อมูล
+    if piece_cells.has(p):
+        var c: Vector2i = piece_cells[p]
+        board_nodes[c.y][c.x] = null
+        piece_cells.erase(p)
+    money_by_piece.erase(p)
+    if turn_order.has(p):
+        turn_order.erase(p)
+        if turn_order.is_empty():
+            active_piece = null
+        else:
+            turn_idx %= turn_order.size()
+            active_piece = turn_order[turn_idx]
+    p.queue_free()
+    queue_redraw()
+    _update_money_ui()
+
+
+    # ถ้าคนเล่นหมด → จบเกม (ตามที่อยากทำ)
+    if turn_order.size() == 0:
+        print("Game Over")
+
+
+func set_money(piece: Sprite2D, value: int) -> void:
+    if piece == null:
+        return
+    money_by_piece[piece] = clamp(value, 0, 999999)
+    _update_money_ui()
+    if money_by_piece[piece] <= 0:
+        _remove_piece_from_board(piece)
+
+func _setup_money() -> void:
+    for n in pieces.get_children():
+        if n is Sprite2D and not money_by_piece.has(n):
+            money_by_piece[n] = hp_start
+
+
+func _remove_piece_from_board(piece: Sprite2D) -> void:
+    # เอาออกจากตาราง
+    if piece_cells.has(piece):
+        var c: Vector2i = piece_cells[piece]
+        if _in_bounds(c) and c.y < board_nodes.size():
+            var row: Array = board_nodes[c.y]
+            if c.x < row.size():
+                row[c.x] = null
+        piece_cells.erase(piece)
+
+    # เอาออกจากลิสต์เงินและเลือก/จุดแสดง
+    money_by_piece.erase(piece)
+    if selected_piece == piece:
+        selected_piece = null
+        selected_cell  = Vector2i(-1, -1)
+        reachable.clear()
+        parent_map.clear()
+
+    # เอาออกจากคิวเทิร์น
+    if turn_order.has(piece):
+        var was_active := (active_piece == piece)
+        turn_order.erase(piece)
+        # ถ้าเป็นตัวที่กำลังเล่นอยู่ → กระโดดไปตัวถัดไป (ถ้ามี)
+        if was_active:
+            if turn_order.size() > 0:
+                turn_idx = turn_idx % turn_order.size()
+                active_piece = turn_order[turn_idx]
+            else:
+                active_piece = null  # เกมจบได้ในอนาคตถ้าต้องการ
+
+    # ลบ node ออกจากซีน
+    piece.queue_free()
+
+    # อัปเดตหน้าจอ/ข้อความ
+    _update_money_ui()
+    if active_piece != null and has_method("_update_turn_label"):
+        _update_turn_label()
+    queue_redraw()
 
 
 
@@ -398,21 +701,21 @@ func _open_dice_panel_for_selected() -> void:
 # SELECT / REACH
 # ====================================================================
 func _select_piece_at(cell: Vector2i) -> void:
+    # ยังมีแต้มเหลือและไม่ได้เปิดเต๋า → ห้ามเลือกใหม่ (กันรีเซ็ต)
+    if steps_left > 0 and not dice_open:
+        return
+
     var piece := _get_piece_at(cell)
     if piece == null:
         return
-
-    # DEBUG: พิมพ์ชื่อไว้ดูว่ามันคลิกตัวไหน
-    print("click piece =", piece.name, "  active =", active_piece and active_piece.name)
-
-    # เลือกได้เฉพาะตัวที่เป็นคิว
     if active_piece == null or piece != active_piece:
         return
 
-    # ผ่านแล้ว -> เปิดหน้าเต๋า
     selected_piece = piece
     selected_cell  = cell
     _open_dice_panel_for_selected()
+
+
 
 # (ถ้ายังไม่ได้ bind owner จะไม่บล็อก — แต่ในเกมจริงควร bind แล้ว)
 
@@ -441,7 +744,9 @@ func _select_piece_at(cell: Vector2i) -> void:
         
 func _on_dice_rolled(value: int) -> void:
     steps_for_current_piece = clamp(value, 1, MAX_STEPS)
+    steps_left = steps_for_current_piece   # เริ่มต้นแต้มเดิน
     dice_has_result = true
+
 
 # BFS แบบแมนฮัตตัน
 func _compute_reachable(start: Vector2i, steps: int) -> void:
@@ -494,7 +799,8 @@ func _move_piece_step_by_step(piece: Sprite2D, start_cell: Vector2i, path: Array
 
     board_nodes[start_cell.y][start_cell.x] = null
     board_nodes[cur.y][cur.x] = piece
-    piece_cells[piece] = cur          # <- สำคัญมาก ใช้กับไฮไลท์เทิร์น
+    piece_cells[piece] = cur
+         # <- สำคัญมาก ใช้กับไฮไลท์เทิร์น
 
     if "set_idle" in piece:
         piece.set_idle()
@@ -515,27 +821,33 @@ func _tween_move_one_cell(piece: Sprite2D, from: Vector2i, to: Vector2i) -> void
 
 
 func _end_turn() -> void:
-    # เคลียร์สถานะของเทิร์น
+    # เคลียร์สถานะเทิร์น
     selected_piece = null
     selected_cell  = Vector2i(-1, -1)
     reachable.clear()
     parent_map.clear()
-    active_piece = turn_order[turn_idx]
-    _update_turn_label()
-    queue_redraw()
-    dice_has_result = false
+
+    steps_left = 0
     steps_for_current_piece = 0
+    dice_has_result = false
     dice_open = false
     if dice_ui:
         dice_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
     # ไปคนถัดไป (วน)
+    if turn_order.is_empty():
+        active_piece = null
+        return
     turn_idx = (turn_idx + 1) % turn_order.size()
     active_piece = turn_order[turn_idx]
-    active_piece = turn_order[turn_idx]
     current_player = _active_player_index()
+
+    # อัปเดต UI
+    _update_turn_label()
     _update_turn_ui()
+    _update_money_ui()
     queue_redraw()
+
 
 
 
@@ -610,35 +922,50 @@ func _has_cell(arr: Array[Vector2i], c: Vector2i) -> bool:
 @onready var dice_ui: Control = get_node_or_null(dice_ui_path)
 
 var steps_for_current_piece: int = 0
+var steps_left: int = 0
 var dice_open: bool = false
 var dice_has_result: bool = false
 var _pending_show_moves: bool = false   # ← ใหม่: รอแสดงจุดหลังปิดหน้าต่าง
 
 func _on_dice_closed() -> void:
     dice_open = false
+    if active_piece == null: return
+    if not dice_has_result: return
 
-    if active_piece == null:
-        return
-    if not dice_has_result:
-        return
-
-    # จุดเริ่มสำหรับคำนวณทางเดิน: เอาจาก piece_cells ถ้ามี
     if piece_cells.has(active_piece):
         selected_cell = piece_cells[active_piece]
     else:
         selected_cell = _pixel_to_cell(active_piece.global_position)
 
-    _compute_reachable(selected_cell, steps_for_current_piece)
+    steps_left = steps_for_current_piece            # ← ใช้ตัวนี้เป็นตัวจริง
+    _compute_reachable(selected_cell, steps_left)   # ← คิดจากจุดปัจจุบันกับแต้มที่เหลือ
     queue_redraw()
-
+    _update_money_ui()
+    _update_skip_btn_text()
+    _refresh_attack_bar() 
     if dice_ui:
         dice_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+    _show_attack_bar_preview()   # ถ้าคุณทำให้ปุ่มแสดงพร้อมจุด
+
+
 
 
     print("dice closed, cell=", selected_cell, " steps=", steps_for_current_piece)
     print("reachable=", reachable)
 
 
+
+
+func _show_attack_bar_preview() -> void:
+    if attack_bar == null: return
+    attack_bar.visible = true
+    # ใช้เป้าหมายจากตำแหน่งปัจจุบันก่อนเดิน
+    _attack_targets = _adjacent_enemies_of(active_piece)
+    if attack_btn:
+        attack_btn.disabled = _attack_targets.is_empty()  # มีศัตรูติดอยู่ กดได้เลย
+    if skip_btn:
+        skip_btn.disabled = false
 
 
 

@@ -29,6 +29,8 @@
 position = Vector2(3200, -2552)
 texture = ExtResource("1_psm7c")
 script = ExtResource("2_8l818")
+attack_bar_path = NodePath("CanvasLayer/AttackBar")
+money_panel_path = NodePath("CanvasLayer/MoneyPanel")
 turn_label_path = NodePath("TurnLabel")
 dice_ui_path = NodePath("CanvasLayer/Control")
 
@@ -80,6 +82,81 @@ zoom = Vector2(-0.09, -0.09)
 
 [node name="Control" parent="CanvasLayer" instance=ExtResource("24_mrqbj")]
 z_index = 1000
+
+[node name="MoneyPanel" type="Label" parent="CanvasLayer"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -525.0
+offset_top = -605.0
+offset_right = -378.0
+offset_bottom = -520.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MoneyGood" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="MoneyCall" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 22.6347
+offset_right = 40.0
+offset_bottom = 45.6347
+
+[node name="MoneyHacker" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 45.2694
+offset_right = 40.0
+offset_bottom = 68.2693
+
+[node name="MoneyPolice" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 67.904
+offset_right = 40.0
+offset_bottom = 90.904
+
+[node name="AttackBar" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 457.0
+offset_top = 526.0
+offset_right = 497.0
+offset_bottom = 566.0
+scale = Vector2(5.88, 1)
+
+[node name="AttackButton" type="Button" parent="CanvasLayer/AttackBar"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 0.340126
+offset_top = -15.5
+offset_right = 53.3401
+offset_bottom = 15.5
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.267917, 1.36)
+text = "โจมตี (-250)"
+
+[node name="SkipButton" type="Button" parent="CanvasLayer/AttackBar"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 48.9796
+offset_top = -15.5
+offset_right = 48.9796
+offset_bottom = 15.5
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.268, 1.36)
+text = "ข้าม"
 
 [node name="TurnLabel" type="Label" parent="."]
 offset_left = 3409.0

@@ -120,9 +120,9 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -6.0
+offset_left = -11.0
 offset_top = -6.0
-offset_right = 11.0
+offset_right = 6.0
 offset_bottom = 9.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -373,7 +373,7 @@ text = "HOW TO PLAY ?"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label2" type="Label" parent="Panel2"]
+[node name="GuideText" type="Label" parent="Panel2"]
 layout_mode = 0
 offset_left = -10.5
 offset_top = 111.0
@@ -409,6 +409,35 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "Back"
 
+[node name="NextButton" type="Button" parent="Panel2"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="BackButton" type="Button" parent="Panel2"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
 [connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
@@ -424,3 +453,5 @@ text = "Back"
 [connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]
 [connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel2/NextButton" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel2/BackButton" to="." method="_on_back_button_pressed"]

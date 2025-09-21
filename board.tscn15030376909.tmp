@@ -1,0 +1,166 @@
+[gd_scene load_steps=25 format=3 uid="uid://djwjy7vrbuv7s"]
+
+[ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
+[ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
+[ext_resource type="Texture2D" uid="uid://f7g4wcb3t3a4" path="res://Asset_UWU/S__5128201.png" id="4_65toc"]
+[ext_resource type="Texture2D" uid="uid://m3ervpblx1r" path="res://Asset_UWU/S__5128203.png" id="5_pwkvm"]
+[ext_resource type="Script" uid="uid://0v3stss7g4hy" path="res://Pieces.gd" id="7_8issi"]
+[ext_resource type="Texture2D" uid="uid://bdifnjy2us8nk" path="res://Asset_UWU/S__5128202.png" id="7_y7cv2"]
+[ext_resource type="Texture2D" uid="uid://dvxwescr6hpwa" path="res://Asset_UWU/S__5128200.png" id="8_5rfmq"]
+[ext_resource type="Texture2D" uid="uid://dpb1r6qevmvfj" path="res://Asset_UWU/S__5128198.png" id="9_mrqbj"]
+[ext_resource type="Texture2D" uid="uid://bj4fjr2vne5pr" path="res://Asset_UWU/S__5128204.png" id="10_d2oob"]
+[ext_resource type="Texture2D" uid="uid://bvysbjwhxn0y8" path="res://Asset_UWU/S__5128205.png" id="11_eq1pg"]
+[ext_resource type="Texture2D" uid="uid://cajhjqpesjiee" path="res://Asset_UWU/S__5128208.png" id="12_ccaoj"]
+[ext_resource type="Texture2D" uid="uid://cis1hjx0glomm" path="res://Asset_UWU/S__5128207.png" id="13_yqcr4"]
+[ext_resource type="Texture2D" uid="uid://blionw5735qth" path="res://Asset_UWU/S__5128206.png" id="14_hqp5w"]
+[ext_resource type="Texture2D" uid="uid://6klmwiq1b7jd" path="res://Asset_UWU/S__5128209.png" id="16_c0aiv"]
+[ext_resource type="Texture2D" uid="uid://dp86bhp0t2k61" path="res://Asset_UWU/S__5128213.png" id="17_1d1a4"]
+[ext_resource type="Texture2D" uid="uid://c02qgidt5o5aj" path="res://Asset_UWU/S__5128214.png" id="18_2yhae"]
+[ext_resource type="Texture2D" uid="uid://6lnrx5dndlm4" path="res://Asset_UWU/S__5128212.png" id="19_aoj51"]
+[ext_resource type="Texture2D" uid="uid://dsdbk5yt2njn2" path="res://Asset_UWU/S__5128211.png" id="20_m7p32"]
+[ext_resource type="Texture2D" uid="uid://ci0twm12krd4o" path="res://Asset_UWU/character/S__5128217_0.png" id="22_m2spp"]
+[ext_resource type="Texture2D" uid="uid://jnty4i2xacr8" path="res://Asset_UWU/character/S__5128223_0.png" id="23_vc6v2"]
+[ext_resource type="PackedScene" uid="uid://ck0udfef8t2r5" path="res://DiceUI.tscn" id="24_mrqbj"]
+[ext_resource type="Texture2D" uid="uid://s8qtutxbd1fb" path="res://Asset_UWU/character/S__5128221_0.png" id="24_u3ggn"]
+[ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
+[ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
+
+[node name="Board" type="Sprite2D"]
+position = Vector2(3200, -2552)
+texture = ExtResource("1_psm7c")
+script = ExtResource("2_8l818")
+attack_bar_path = NodePath("CanvasLayer/AttackBar")
+money_panel_path = NodePath("CanvasLayer/MoneyPanel")
+turn_label_path = NodePath("TurnLabel")
+dice_ui_path = NodePath("CanvasLayer/Control")
+
+[node name="Pieces" type="Node2D" parent="."]
+
+[node name="Good" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("4_65toc")
+tex_walk_up = ExtResource("5_pwkvm")
+tex_walk_down = ExtResource("9_mrqbj")
+tex_walk_left = ExtResource("7_y7cv2")
+tex_walk_right = ExtResource("8_5rfmq")
+
+[node name="Call" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("10_d2oob")
+tex_walk_up = ExtResource("11_eq1pg")
+tex_walk_down = ExtResource("12_ccaoj")
+tex_walk_left = ExtResource("13_yqcr4")
+tex_walk_right = ExtResource("14_hqp5w")
+
+[node name="Hacker" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("16_c0aiv")
+tex_walk_up = ExtResource("17_1d1a4")
+tex_walk_down = ExtResource("18_2yhae")
+tex_walk_left = ExtResource("19_aoj51")
+tex_walk_right = ExtResource("20_m7p32")
+
+[node name="Police" type="Sprite2D" parent="Pieces"]
+script = ExtResource("7_8issi")
+tex_idle = ExtResource("22_m2spp")
+tex_walk_up = ExtResource("23_vc6v2")
+tex_walk_down = ExtResource("24_u3ggn")
+tex_walk_left = ExtResource("25_3hc0m")
+tex_walk_right = ExtResource("26_6cqox")
+
+[node name="Dots" type="Node2D" parent="."]
+
+[node name="Turn" type="Sprite2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(-12808, -7196)
+offset = Vector2(-4.475, 0)
+ignore_rotation = false
+zoom = Vector2(-0.09, -0.09)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" parent="CanvasLayer" instance=ExtResource("24_mrqbj")]
+z_index = 1000
+
+[node name="MoneyPanel" type="Label" parent="CanvasLayer"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -525.0
+offset_top = -605.0
+offset_right = -378.0
+offset_bottom = -520.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MoneyGood" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="MoneyCall" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 22.6347
+offset_right = 40.0
+offset_bottom = 45.6347
+
+[node name="MoneyHacker" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 45.2694
+offset_right = 40.0
+offset_bottom = 68.2693
+
+[node name="MoneyPolice" type="Label" parent="CanvasLayer/MoneyPanel"]
+layout_mode = 0
+offset_top = 67.904
+offset_right = 40.0
+offset_bottom = 90.904
+
+[node name="AttackBar" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 457.0
+offset_top = 526.0
+offset_right = 497.0
+offset_bottom = 566.0
+scale = Vector2(5.88, 1)
+
+[node name="AttackButton" type="Button" parent="CanvasLayer/AttackBar"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 0.340126
+offset_top = -15.5
+offset_right = 53.3401
+offset_bottom = 15.5
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.267917, 1.36)
+text = "โจมตี (-250)"
+
+[node name="SkipButton" type="Button" parent="CanvasLayer/AttackBar"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 48.9796
+offset_top = -15.5
+offset_right = 48.9796
+offset_bottom = 15.5
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.268, 1.36)
+text = "ข้าม"
+
+[node name="TurnLabel" type="Label" parent="."]
+offset_left = 3409.0
+offset_top = -210.0
+offset_right = 3449.0
+offset_bottom = -187.0
+scale = Vector2(17.4435, 17.4435)

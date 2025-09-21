@@ -31,9 +31,6 @@ corner_radius_bottom_left = 16
 shadow_size = 15
 
 [sub_resource type="FontFile" id="FontFile_wfgb2"]
-subpixel_positioning = 0
-msdf_pixel_range = 14
-msdf_size = 128
 cache/0/80/0/ascent = 0.0
 cache/0/80/0/descent = 0.0
 cache/0/80/0/underline_position = 0.0
@@ -70,9 +67,6 @@ corner_radius_bottom_left = 16
 shadow_size = 15
 
 [sub_resource type="FontFile" id="FontFile_bcalf"]
-subpixel_positioning = 0
-msdf_pixel_range = 14
-msdf_size = 128
 cache/0/60/0/ascent = 0.0
 cache/0/60/0/descent = 0.0
 cache/0/60/0/underline_position = 0.0

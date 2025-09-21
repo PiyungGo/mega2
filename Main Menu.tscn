@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cdwng6ow71d1r"]
+[gd_scene load_steps=18 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
 [ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
@@ -15,7 +15,40 @@ modulate_color = Color(0.741824, 0.405744, 0.742671, 1)
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_dvdtt"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7yr4w"]
-bg_color = Color(1, 1, 1, 1)
+bg_color = Color(0.779977, 0.861158, 1, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xwd2w"]
+bg_color = Color(0.607274, 0.538472, 0.886871, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 15
+
+[sub_resource type="FontFile" id="FontFile_wfgb2"]
+cache/0/80/0/ascent = 0.0
+cache/0/80/0/descent = 0.0
+cache/0/80/0/underline_position = 0.0
+cache/0/80/0/underline_thickness = 0.0
+cache/0/80/0/scale = 1.0
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wlsky"]
+bg_color = Color(0.45198, 0.642112, 0.933593, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 15
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_dvdtt"]
 color = Color(4.90934e-06, 0.667308, 0.815247, 0.87451)
@@ -24,6 +57,39 @@ thickness = 8
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_i5qic"]
 color = Color(0.951397, 0, 0.140215, 1)
 thickness = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ht6vt"]
+bg_color = Color(0.55074, 0.504329, 0.878063, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 15
+
+[sub_resource type="FontFile" id="FontFile_bcalf"]
+cache/0/60/0/ascent = 0.0
+cache/0/60/0/descent = 0.0
+cache/0/60/0/underline_position = 0.0
+cache/0/60/0/underline_thickness = 0.0
+cache/0/60/0/scale = 1.0
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+cache/0/70/0/ascent = 0.0
+cache/0/70/0/descent = 0.0
+cache/0/70/0/underline_position = 0.0
+cache/0/70/0/underline_thickness = 0.0
+cache/0/70/0/scale = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6viy2"]
+bg_color = Color(0.326538, 0.437603, 0.805472, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 15
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -48,8 +114,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -6.0
+offset_top = -6.0
+offset_right = 11.0
+offset_bottom = 9.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(1.00352, 1.00298)
 theme_override_styles/panel = SubResource("StyleBoxTexture_wfgb2")
 
 [node name="Main button" type="VBoxContainer" parent="."]
@@ -59,13 +130,27 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -26.0
-offset_right = 200.0
-offset_bottom = 243.0
+offset_left = -219.0
+offset_top = -108.0
+offset_right = 210.0
+offset_bottom = 287.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
+
+[node name="Button4" type="Button" parent="Main button"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 50
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "คู่มือการเล่น"
 
 [node name="Button" type="Button" parent="Main button"]
 layout_mode = 2
@@ -74,12 +159,26 @@ theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
 theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 60
+theme_override_font_sizes/font_size = 50
 theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
 theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
-text = "start
+text = "สร้างห้อง"
+
+[node name="Button5" type="Button" parent="Main button"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 50
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "เข้าร่วมเซิฟเวอร์
 "
 
 [node name="Button2" type="Button" parent="Main button"]
@@ -89,12 +188,12 @@ theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
 theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 60
+theme_override_font_sizes/font_size = 50
 theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
 theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
-text = "option
+text = "การตั้งค่า
 "
 
 [node name="Button3" type="Button" parent="Main button"]
@@ -104,12 +203,12 @@ theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
 theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 60
+theme_override_font_sizes/font_size = 50
 theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
 theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
-text = "exit"
+text = "ออก"
 
 [node name="Label" type="Label" parent="Main button"]
 layout_mode = 2
@@ -119,10 +218,10 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -337.0
-offset_top = -535.5
-offset_right = 337.0
-offset_bottom = -398.5
+offset_left = -324.5
+offset_top = -589.5
+offset_right = 349.5
+offset_bottom = -452.5
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 100
 text = "MONEY HUNT"
@@ -146,17 +245,22 @@ offset_right = 384.5
 offset_bottom = 300.5
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_xwd2w")
 
 [node name="Label" type="Label" parent="option"]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -397.5
-offset_right = 402.5
-offset_bottom = 107.0
+offset_left = -384.5
+offset_top = 1.0
+offset_right = 416.5
+offset_bottom = 111.0
 grow_horizontal = 2
+scale = Vector2(0.961186, 0.974871)
+theme_override_fonts/font = SubResource("FontFile_wfgb2")
 theme_override_font_sizes/font_size = 80
+theme_override_styles/normal = SubResource("StyleBoxFlat_wlsky")
 text = "option"
 horizontal_alignment = 1
 
@@ -190,10 +294,10 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -319.0
-offset_top = 104.5
-offset_right = 342.0
-offset_bottom = 160.5
+offset_left = -253.0
+offset_top = 115.5
+offset_right = 338.0
+offset_bottom = 171.5
 grow_horizontal = 2
 theme_override_styles/slider = SubResource("StyleBoxLine_dvdtt")
 theme_override_styles/grabber_area = SubResource("StyleBoxLine_i5qic")
@@ -211,10 +315,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -318.5
-offset_top = -33.5
-offset_right = 333.5
-offset_bottom = 34.5
+offset_left = -356.0
+offset_top = -42.0
+offset_right = 345.0
+offset_bottom = 25.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 30
@@ -222,8 +326,88 @@ button_pressed = true
 text = "Full screen"
 script = ExtResource("4_12kdf")
 
+[node name="Label2" type="Label" parent="option"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -348.0
+offset_top = 116.5
+offset_right = -291.0
+offset_bottom = 147.5
+grow_horizontal = 2
+scale = Vector2(1.5, 1.55556)
+theme_override_font_sizes/font_size = 20
+text = "Music"
+
+[node name="Panel2" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="Label" type="Label" parent="Panel2"]
+layout_mode = 0
+offset_right = 999.0
+offset_bottom = 100.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Label2" type="Label" parent="Panel2"]
+layout_mode = 0
+offset_left = -10.5
+offset_top = 111.0
+offset_right = 988.5
+offset_bottom = 211.0
+theme_override_font_sizes/font_size = 30
+text = "เกมนี้สามารถบลาๆๆๆ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Back2" type="Button" parent="Panel2"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -198.5
+offset_top = -113.5
+offset_right = 198.5
+offset_bottom = -27.5
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
+[connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
 [connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="Main button/Button5" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
 [connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
 [connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
@@ -232,3 +416,5 @@ script = ExtResource("4_12kdf")
 [connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
 [connection signal="value_changed" from="option/AudioControl" to="option/AudioControl" method="_on_value_changed"]
 [connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]
+[connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]

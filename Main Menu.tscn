@@ -31,6 +31,9 @@ corner_radius_bottom_left = 16
 shadow_size = 15
 
 [sub_resource type="FontFile" id="FontFile_wfgb2"]
+subpixel_positioning = 0
+msdf_pixel_range = 14
+msdf_size = 128
 cache/0/80/0/ascent = 0.0
 cache/0/80/0/descent = 0.0
 cache/0/80/0/underline_position = 0.0
@@ -67,6 +70,9 @@ corner_radius_bottom_left = 16
 shadow_size = 15
 
 [sub_resource type="FontFile" id="FontFile_bcalf"]
+subpixel_positioning = 0
+msdf_pixel_range = 14
+msdf_size = 128
 cache/0/60/0/ascent = 0.0
 cache/0/60/0/descent = 0.0
 cache/0/60/0/underline_position = 0.0
@@ -403,18 +409,18 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "Back"
 
-[connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
+[connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
 [connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
 [connection signal="pressed" from="Main button/Button5" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
 [connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
-[connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
+[connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
 [connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
-[connection signal="pressed" from="option/Back" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
 [connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="option/Back" to="." method="_on_back_option_pressed"]
 [connection signal="value_changed" from="option/AudioControl" to="option/AudioControl" method="_on_value_changed"]
 [connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]
-[connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]
 [connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]

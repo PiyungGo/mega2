@@ -1,7 +1,8 @@
-[gd_scene load_steps=25 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=31 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
+[ext_resource type="PackedScene" uid="uid://cdwng6ow71d1r" path="res://Main Menu.tscn" id="3_65toc"]
 [ext_resource type="Texture2D" uid="uid://f7g4wcb3t3a4" path="res://Asset_UWU/S__5128201.png" id="4_65toc"]
 [ext_resource type="Texture2D" uid="uid://m3ervpblx1r" path="res://Asset_UWU/S__5128203.png" id="5_pwkvm"]
 [ext_resource type="Script" uid="uid://0v3stss7g4hy" path="res://Pieces.gd" id="7_8issi"]
@@ -23,16 +24,64 @@
 [ext_resource type="PackedScene" uid="uid://ck0udfef8t2r5" path="res://DiceUI.tscn" id="24_mrqbj"]
 [ext_resource type="Texture2D" uid="uid://s8qtutxbd1fb" path="res://Asset_UWU/character/S__5128221_0.png" id="24_u3ggn"]
 [ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
+[ext_resource type="Script" uid="uid://d3rmlls02pb2q" path="res://SettingOverlay.gd" id="25_cg1r7"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mrqbj"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.0929925, 0.359265, 0.382828, 1)
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+expand_margin_left = 75.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cg1r7"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.166916, 0.315578, 0.053567, 1)
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+expand_margin_left = 75.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_65toc"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.422593, 0.183371, 0.386906, 1)
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+expand_margin_left = 75.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pwkvm"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.0941988, 0.182251, 0.377158, 1)
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+expand_margin_left = 75.0
 
 [node name="Board" type="Sprite2D"]
 position = Vector2(3200, -2552)
 texture = ExtResource("1_psm7c")
 script = ExtResource("2_8l818")
+round_label_path = NodePath("CanvasLayer/TopBar/RoundLabel")
+side_turn_label_path = NodePath("TurnLabel")
 attack_bar_path = NodePath("CanvasLayer/AttackBar")
-money_panel_path = NodePath("CanvasLayer/MoneyPanel")
-turn_label_path = NodePath("TurnLabel")
+win_panel_path = NodePath("CanvasLayer/WinPanel")
+MAX_TURNS = 2
+topbar_path = NodePath("CanvasLayer/TopBar")
+quit_confirm_path = NodePath("CanvasLayer/QuitConfirm")
+turn_label_path = NodePath("CanvasLayer/TopBar/RoundLabel")
+MainMenuScene = ExtResource("3_65toc")
 dice_ui_path = NodePath("CanvasLayer/Control")
+dice_roll_label_path = NodePath("CanvasLayer/DiceRollLabel")
 
 [node name="Pieces" type="Node2D" parent="."]
 
@@ -83,42 +132,6 @@ zoom = Vector2(-0.09, -0.09)
 [node name="Control" parent="CanvasLayer" instance=ExtResource("24_mrqbj")]
 z_index = 1000
 
-[node name="MoneyPanel" type="Label" parent="CanvasLayer"]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -525.0
-offset_top = -605.0
-offset_right = -378.0
-offset_bottom = -520.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="MoneyGood" type="Label" parent="CanvasLayer/MoneyPanel"]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
-
-[node name="MoneyCall" type="Label" parent="CanvasLayer/MoneyPanel"]
-layout_mode = 0
-offset_top = 22.6347
-offset_right = 40.0
-offset_bottom = 45.6347
-
-[node name="MoneyHacker" type="Label" parent="CanvasLayer/MoneyPanel"]
-layout_mode = 0
-offset_top = 45.2694
-offset_right = 40.0
-offset_bottom = 68.2693
-
-[node name="MoneyPolice" type="Label" parent="CanvasLayer/MoneyPanel"]
-layout_mode = 0
-offset_top = 67.904
-offset_right = 40.0
-offset_bottom = 90.904
-
 [node name="AttackBar" type="Control" parent="CanvasLayer"]
 layout_mode = 3
 anchors_preset = 0
@@ -158,9 +171,199 @@ grow_vertical = 2
 scale = Vector2(0.268, 1.36)
 text = "ข้าม"
 
+[node name="DiceRollLabel" type="Label" parent="CanvasLayer"]
+offset_left = 941.0
+offset_top = 95.0
+offset_right = 1035.0
+offset_bottom = 149.0
+
+[node name="WinPanel" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 219.0
+offset_top = 108.0
+offset_right = 259.0
+offset_bottom = 131.0
+scale = Vector2(18.4879, 18.4879)
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/WinPanel"]
+texture_filter = 1
+layout_mode = 1
+offset_left = 12.1701
+offset_top = -2.10949
+offset_right = 96.1701
+offset_bottom = 20.8905
+scale = Vector2(0.294674, 0.294674)
+text = "คุณชนะแล้ว"
+
+[node name="SubtitleLabel" type="Label" parent="CanvasLayer/WinPanel"]
+layout_mode = 0
+offset_left = 15.7941
+offset_top = 5.94983
+offset_right = 92.7941
+offset_bottom = 28.9498
+scale = Vector2(0.092988, 0.092988)
+text = "เงินคงเหลือ"
+
+[node name="WinnerIcon" type="TextureRect" parent="CanvasLayer/WinPanel"]
+texture_filter = 1
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 0
+offset_left = 18.0118
+offset_top = 6.97753
+offset_right = 58.0118
+offset_bottom = 46.9775
+scale = Vector2(0.22544, 0.22544)
+stretch_mode = 3
+
+[node name="QuitButton" type="Button" parent="CanvasLayer/WinPanel"]
+layout_mode = 0
+offset_left = 14.7664
+offset_top = 17.7413
+offset_right = 77.7664
+offset_bottom = 48.7413
+scale = Vector2(0.136733, 0.136733)
+text = "ออกเกม"
+
+[node name="PlayerProfiles" type="VBoxContainer" parent="CanvasLayer"]
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 74.0
+offset_top = -272.0
+offset_right = 114.0
+offset_bottom = 250.0
+grow_vertical = 2
+theme_override_constants/separation = 30
+
+[node name="ProfileCard2" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mrqbj")
+
+[node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard2"]
+layout_mode = 2
+theme_override_constants/separation = -5
+
+[node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard2/Info"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard2/Info"]
+layout_mode = 2
+
+[node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard2/Info"]
+layout_mode = 2
+theme_override_constants/line_spacing = -5
+
+[node name="ProfileCard3" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_cg1r7")
+
+[node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard3"]
+layout_mode = 2
+theme_override_constants/separation = -5
+
+[node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard3/Info"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard3/Info"]
+layout_mode = 2
+
+[node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard3/Info"]
+layout_mode = 2
+theme_override_constants/line_spacing = -5
+
+[node name="ProfileCard4" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_65toc")
+
+[node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard4"]
+layout_mode = 2
+theme_override_constants/separation = -5
+
+[node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard4/Info"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard4/Info"]
+layout_mode = 2
+
+[node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard4/Info"]
+layout_mode = 2
+theme_override_constants/line_spacing = -5
+
+[node name="ProfileCard1" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pwkvm")
+
+[node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard1"]
+layout_mode = 2
+theme_override_constants/separation = -5
+
+[node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard1/Info"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard1/Info"]
+layout_mode = 2
+
+[node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard1/Info"]
+layout_mode = 2
+theme_override_constants/line_spacing = -5
+
+[node name="TopBar" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -134.0
+offset_top = 10.0
+offset_right = -94.0
+offset_bottom = 50.0
+grow_horizontal = 0
+scale = Vector2(3.2, 3.2)
+
+[node name="RoundLabel" type="Label" parent="CanvasLayer/TopBar"]
+layout_mode = 0
+offset_left = -41.875
+offset_right = -1.875
+offset_bottom = 23.0
+scale = Vector2(0.4875, 0.4875)
+
+[node name="SettingsBtn" type="Button" parent="CanvasLayer/TopBar"]
+layout_mode = 0
+offset_left = 7.1875
+offset_right = 52.1875
+offset_bottom = 31.0
+scale = Vector2(0.35, 0.35)
+text = "ตั้งค่า"
+
+[node name="QuitBtn" type="Button" parent="CanvasLayer/TopBar"]
+layout_mode = 0
+offset_left = 24.6875
+offset_right = 61.6875
+offset_bottom = 31.0
+scale = Vector2(0.3625, 0.3625)
+text = "ออก"
+
+[node name="SettingsOverlay" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("25_cg1r7")
+
+[node name="QuitConfirm" type="ConfirmationDialog" parent="CanvasLayer"]
+position = Vector2i(475, 271)
+
 [node name="TurnLabel" type="Label" parent="."]
 offset_left = 3409.0
 offset_top = -210.0
 offset_right = 3449.0
 offset_bottom = -187.0
-scale = Vector2(17.4435, 17.4435)
+scale = Vector2(14.6835, 14.6835)

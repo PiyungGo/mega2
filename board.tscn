@@ -24,7 +24,7 @@
 [ext_resource type="PackedScene" uid="uid://ck0udfef8t2r5" path="res://DiceUI.tscn" id="24_mrqbj"]
 [ext_resource type="Texture2D" uid="uid://s8qtutxbd1fb" path="res://Asset_UWU/character/S__5128221_0.png" id="24_u3ggn"]
 [ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
-[ext_resource type="Script" uid="uid://d3rmlls02pb2q" path="res://SettingOverlay.gd" id="25_cg1r7"]
+[ext_resource type="Script" uid="uid://bicpp1st4ryts" path="res://SettingOverlay.gd" id="25_cg1r7"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mrqbj"]

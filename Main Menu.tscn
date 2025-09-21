@@ -1,10 +1,11 @@
-[gd_scene load_steps=18 format=3 uid="uid://cdwng6ow71d1r"]
+[gd_scene load_steps=19 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
 [ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
 [ext_resource type="Texture2D" uid="uid://2tku10ksyi7n" path="res://Gemini_Generated_Image_1hkgc71hkgc71hkg.png" id="2_xwd2w"]
 [ext_resource type="Script" uid="uid://h22brvio2otb" path="res://audio_control.gd" id="3_i5qic"]
 [ext_resource type="Script" uid="uid://70urtdgl72k1" path="res://fullscreen_control.gd" id="4_12kdf"]
+[ext_resource type="AudioStream" uid="uid://du8hotevt6e6d" path="res://button-press-382713.mp3" id="6_wfgb2"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_5b7ti"]
 
@@ -144,7 +145,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="Button4" type="Button" parent="Main button"]
+[node name="Button4" type="Button" parent="Main button" groups=["ui_click"]]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -158,7 +159,7 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "คู่มือการเล่น"
 
-[node name="Button" type="Button" parent="Main button"]
+[node name="Button" type="Button" parent="Main button" groups=["ui_click"]]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -172,7 +173,7 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "สร้างห้อง"
 
-[node name="Button5" type="Button" parent="Main button"]
+[node name="Button5" type="Button" parent="Main button" groups=["ui_click"]]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -187,7 +188,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "เข้าร่วมเซิฟเวอร์
 "
 
-[node name="Button2" type="Button" parent="Main button"]
+[node name="Button2" type="Button" parent="Main button" groups=["ui_click"]]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -202,7 +203,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "การตั้งค่า
 "
 
-[node name="Button3" type="Button" parent="Main button"]
+[node name="Button3" type="Button" parent="Main button" groups=["ui_click"]]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
@@ -234,6 +235,7 @@ text = "MONEY HUNT"
 
 [node name="780006338_710747(online-audio-converter_com)" type="AudioStreamPlayer" parent="Main button"]
 stream = ExtResource("2_i5qic")
+volume_db = -5.474
 autoplay = true
 bus = &"Music"
 
@@ -270,7 +272,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_wlsky")
 text = "option"
 horizontal_alignment = 1
 
-[node name="Back" type="Button" parent="option"]
+[node name="Back" type="Button" parent="option" groups=["ui_click"]]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -384,7 +386,7 @@ text = "เกมนี้สามารถบลาๆๆๆ"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Back2" type="Button" parent="Panel2"]
+[node name="Back2" type="Button" parent="Panel2" groups=["ui_click"]]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -409,7 +411,7 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "Back"
 
-[node name="NextButton" type="Button" parent="Panel2"]
+[node name="NextButton" type="Button" parent="Panel2" groups=["ui_click"]]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
@@ -425,7 +427,7 @@ grow_vertical = 0
 theme_override_font_sizes/font_size = 30
 text = "หน้าถัดไป"
 
-[node name="BackButton" type="Button" parent="Panel2"]
+[node name="BackButton" type="Button" parent="Panel2" groups=["ui_click"]]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -438,20 +440,24 @@ grow_vertical = 0
 theme_override_font_sizes/font_size = 30
 text = "Back"
 
-[connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
+[node name="ClickSfx" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6_wfgb2")
+volume_db = -8.211
+
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
-[connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
+[connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button5" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
 [connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
-[connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
 [connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
-[connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="option/Back" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
 [connection signal="value_changed" from="option/AudioControl" to="option/AudioControl" method="_on_value_changed"]
 [connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]
-[connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel2/NextButton" to="." method="_on_next_button_pressed"]
 [connection signal="pressed" from="Panel2/BackButton" to="." method="_on_back_button_pressed"]

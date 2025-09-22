@@ -1,8 +1,9 @@
-[gd_scene load_steps=31 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=32 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
 [ext_resource type="PackedScene" uid="uid://cdwng6ow71d1r" path="res://Main Menu.tscn" id="3_65toc"]
+[ext_resource type="Resource" uid="uid://kf8bob0x5kj" path="res://data/cards/card_database.tres" id="3_pwkvm"]
 [ext_resource type="Texture2D" uid="uid://f7g4wcb3t3a4" path="res://Asset_UWU/S__5128201.png" id="4_65toc"]
 [ext_resource type="Texture2D" uid="uid://m3ervpblx1r" path="res://Asset_UWU/S__5128203.png" id="5_pwkvm"]
 [ext_resource type="Script" uid="uid://0v3stss7g4hy" path="res://Pieces.gd" id="7_8issi"]
@@ -68,7 +69,6 @@ corner_radius_bottom_right = 10
 expand_margin_left = 75.0
 
 [node name="Board" type="Sprite2D"]
-position = Vector2(3200, -2552)
 texture = ExtResource("1_psm7c")
 script = ExtResource("2_8l818")
 round_label_path = NodePath("CanvasLayer/TopBar/RoundLabel")
@@ -77,6 +77,8 @@ attack_bar_path = NodePath("CanvasLayer/AttackBar")
 win_panel_path = NodePath("CanvasLayer/WinPanel")
 topbar_path = NodePath("CanvasLayer/TopBar")
 quit_confirm_path = NodePath("CanvasLayer/QuitConfirm")
+card_bar_path = NodePath("CanvasLayer/CardBar")
+card_db = ExtResource("3_pwkvm")
 turn_label_path = NodePath("CanvasLayer/TopBar/RoundLabel")
 MainMenuScene = ExtResource("3_65toc")
 dice_ui_path = NodePath("CanvasLayer/Control")
@@ -121,10 +123,9 @@ tex_walk_right = ExtResource("26_6cqox")
 [node name="Turn" type="Sprite2D" parent="."]
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(-12808, -7196)
-offset = Vector2(-4.475, 0)
+position = Vector2(0, 523)
 ignore_rotation = false
-zoom = Vector2(-0.09, -0.09)
+zoom = Vector2(0.13, 0.13)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -140,41 +141,27 @@ offset_right = 497.0
 offset_bottom = 566.0
 scale = Vector2(5.88, 1)
 
-[node name="AttackButton" type="Button" parent="CanvasLayer/AttackBar"]
-layout_mode = 1
-anchors_preset = 14
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = 0.340126
-offset_top = -15.5
-offset_right = 53.3401
-offset_bottom = 15.5
-grow_horizontal = 2
-grow_vertical = 2
-scale = Vector2(0.267917, 1.36)
-text = "โจมตี (-250)"
-
 [node name="SkipButton" type="Button" parent="CanvasLayer/AttackBar"]
 layout_mode = 1
 anchors_preset = 14
 anchor_top = 0.5
 anchor_right = 1.0
 anchor_bottom = 0.5
-offset_left = 48.9796
-offset_top = -15.5
-offset_right = 48.9796
-offset_bottom = 15.5
+offset_left = 207.483
+offset_top = 333.0
+offset_right = 207.483
+offset_bottom = 364.0
 grow_horizontal = 2
 grow_vertical = 2
 scale = Vector2(0.268, 1.36)
 text = "ข้าม"
 
 [node name="DiceRollLabel" type="Label" parent="CanvasLayer"]
-offset_left = 941.0
-offset_top = 95.0
-offset_right = 1035.0
-offset_bottom = 149.0
+offset_left = 1404.0
+offset_top = 273.0
+offset_right = 1498.0
+offset_bottom = 327.0
+scale = Vector2(1.8013, 1.8013)
 
 [node name="WinPanel" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -359,6 +346,113 @@ script = ExtResource("25_cg1r7")
 
 [node name="QuitConfirm" type="ConfirmationDialog" parent="CanvasLayer"]
 position = Vector2i(475, 271)
+size = Vector2i(600, 300)
+content_scale_factor = 2.5
+
+[node name="CardBar" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -114.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="HoverZone" type="Control" parent="CanvasLayer/CardBar"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_top = -134.0
+offset_right = -436.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 0
+scale = Vector2(1.32, 1.16)
+mouse_filter = 1
+
+[node name="Slots" type="HBoxContainer" parent="CanvasLayer/CardBar"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -138.64
+offset_bottom = -18.64
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Slot1" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot2" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot3" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot4" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot5" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot6" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot7" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="Slot8" type="Button" parent="CanvasLayer/CardBar/Slots"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+
+[node name="UseCardButton" type="Button" parent="CanvasLayer/CardBar"]
+z_index = 1002
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = -115.0
+offset_right = -295.0
+offset_bottom = -84.0
+grow_horizontal = 0
+grow_vertical = 0
+scale = Vector2(2.36, 2.36)
+text = "ใช้การ์ด"
+
+[node name="EndTurnButton" type="Button" parent="CanvasLayer/CardBar"]
+z_index = 1002
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -133.0
+offset_top = -115.0
+offset_right = -105.0
+offset_bottom = -84.0
+grow_horizontal = 0
+grow_vertical = 0
+scale = Vector2(2.36, 2.36)
+text = "จบ"
 
 [node name="TurnLabel" type="Label" parent="."]
 offset_left = 3409.0

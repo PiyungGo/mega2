@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://c7tiryd2v5g41"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_hehq4"]
+
+[resource]
+script = ExtResource("1_hehq4")
+id = "all_def"
+name = "Reflective"
+type = 1
+desc = "(ป้องกันการโจมตีทุกรูปแบบ (แดง, ม่วงป้องกันได้หมด)) เราควรเตรียมพร้อมจากสถานการณ์ที่คาดไม่ถึง Safety First ไงละ!"
+effect = "all_def"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

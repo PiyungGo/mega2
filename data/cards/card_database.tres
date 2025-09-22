@@ -1,0 +1,108 @@
+[gd_resource type="Resource" script_class="CardDatabase" load_steps=14 format=3 uid="uid://kf8bob0x5kj"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_m640w"]
+[ext_resource type="Script" uid="uid://br4d8r6lj35aj" path="res://data/cards/card_database.gd" id="2_0go7s"]
+
+[sub_resource type="Resource" id="Resource_m0s68"]
+script = ExtResource("1_m640w")
+id = &"steal_100"
+name = "Data Skimmer"
+type = 0
+desc = "(ขโมยเงิน 100) ดักจับข้อมูลธุรกรรมจากธนาคารนคร"
+effect = "steal_100"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_1gj1s"]
+script = ExtResource("1_m640w")
+id = "shield_50"
+name = "Firewall Patch"
+type = 1
+desc = "(ป้องกัน 50) อัพเดตไฟล์วอร์ลให้เป็นเวอร์ชั่นล่าสุดเสมอ "
+effect = "shield_50"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_omcqd"]
+script = ExtResource("1_m640w")
+id = "teleport"
+name = "Trace jump"
+type = 2
+desc = "(วาร์ปไปยังจุดที่ต้องการได้) ห๊ะ!?..ดีลอน มัสก์?..ประธานจะให้ผมซื้อตั๋วกระสวยนั่งจากกทม. ไปซานฟรานฯ?"
+effect = "teleport"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_2lkjk"]
+script = ExtResource("1_m640w")
+id = "Pir_steal_100"
+name = "Bypass Breach"
+type = 0
+desc = "(ขโมยเงิน 100 แบบทะลุการป้องกัน) ประตูหน้ามันแข็ง ก็อ้อมเข้าด้านหลังซะสิ"
+effect = "Pir_steal_100"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_f6t7j"]
+script = ExtResource("1_m640w")
+id = "steal_50Per"
+name = "Root Access Heist"
+type = 0
+desc = "(ขโมยเงิน 50% ของผู้เล่นที่ถูกเลือก) ถือครองสิทธิ์ Admin ของผู้เล่นคนอื่น เซิฟเวอร์นี้เป็นของคุณแล้ว"
+effect = "steal_50%"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_jsdgl"]
+script = ExtResource("1_m640w")
+id = "steal_20Per"
+name = "Cryptoworm Drain"
+type = 0
+desc = "(ขโมยเงิน 20% ของผู้เล่น) คริปโตนายน่ะ ฉันขอละนะ"
+effect = "steal_20%"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_lu728"]
+script = ExtResource("1_m640w")
+id = "shield_125"
+name = "Security Protocol"
+type = 1
+desc = "(ป้องกัน 125) คุณมีระบบป้องกันที่แข็งแกร่ง ไม่ให้แฮ็กง่ายๆหรอกนะ! "
+effect = "shield_125"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_wcq3y"]
+script = ExtResource("1_m640w")
+id = "counter_shield"
+name = "Counter Hack"
+type = 1
+desc = "(สะท้อนการโจมตีของศัตรู ไปหาศัตรูเอง) ลูกเล่นการแฮ็กของนายแพรวพราวดีนี่ ฉันขอลองใช้ดูหน่อยละกัน"
+effect = "counter_shield"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_3rghm"]
+script = ExtResource("1_m640w")
+id = "all_def"
+name = "Reflective Surge"
+type = 1
+desc = "(ป้องกันการโจมตีทุกรูปแบบ (แดง, ม่วงป้องกันได้หมด)) เราควรเตรียมพร้อมจากสถานการณ์ที่คาดไม่ถึง Safety First ไงละ!"
+effect = "all_def"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_x3rv6"]
+script = ExtResource("1_m640w")
+id = "pfreeze_"
+name = "Process Freeze"
+type = 2
+desc = "(จะหยุดเดิน 1 ตา กับผู้เล่นที่เลือกใช้) \\_(x.x)_/ #Freezeeeezzz..#"
+effect = "pfreeze_"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[sub_resource type="Resource" id="Resource_kbrbh"]
+script = ExtResource("1_m640w")
+id = "D"
+name = "System Failure"
+type = 2
+desc = "(เมื่อได้รับการ์ดนี้เข้ามือ จะเสียเงิน 200 ทันที) เฮ้อ~ จอฟ้าอีกแล้ว ช่วงนี้เป็นบ่อยชะมัดเลย"
+effect = "gone_s200"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
+
+[resource]
+script = ExtResource("2_0go7s")
+cards = Array[ExtResource("1_m640w")]([SubResource("Resource_m0s68"), SubResource("Resource_1gj1s"), SubResource("Resource_omcqd"), SubResource("Resource_2lkjk"), SubResource("Resource_f6t7j"), SubResource("Resource_jsdgl"), SubResource("Resource_lu728"), SubResource("Resource_wcq3y"), SubResource("Resource_3rghm"), SubResource("Resource_x3rv6"), SubResource("Resource_kbrbh")])
+metadata/_custom_type_script = "uid://br4d8r6lj35aj"

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://dr4ngavfr0s74"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_64715"]
+
+[resource]
+script = ExtResource("1_64715")
+id = "steal_100"
+name = "Data Skimmer"
+type = 0
+desc = "(ขโมยเงิน 100) ดักจับข้อมูลธุรกรรมจากธนาคารนคร"
+effect = "steal_100"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

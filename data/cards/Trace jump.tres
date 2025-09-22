@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://ctfm81wvjxq0x"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_p07x4"]
+
+[resource]
+script = ExtResource("1_p07x4")
+id = "teleport"
+name = "Trace jump"
+type = 2
+desc = "วาร์ปไปยังจุดที่ต้องการได้"
+effect = "teleport"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

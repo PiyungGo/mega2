@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://u56blcc6ne44"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_6ttol"]
+
+[resource]
+script = ExtResource("1_6ttol")
+id = "gone_s200"
+name = "System Failure"
+type = 2
+desc = "เมื่อได้รับการ์ดนี้เข้ามือ"
+effect = "gone_s200"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

@@ -1,0 +1,52 @@
+[gd_scene load_steps=2 format=3 uid="uid://brv1mvu8otr2l"]
+
+[ext_resource type="Script" uid="uid://dfl5dorf3pqht" path="res://addons/card_editor/card_editor.gd" id="1_r322d"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.56, 0.56)
+script = ExtResource("1_r322d")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -35.5
+offset_right = 35.5
+offset_bottom = 389.0
+grow_horizontal = 2
+scale = Vector2(2.59958, 2.59958)
+theme_override_constants/separation = 25
+
+[node name="id" type="LineEdit" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="name" type="LineEdit" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="type" type="OptionButton" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="desc" type="TextEdit" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="effect" type="LineEdit" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Add" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Add"
+
+[node name="Save DB" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Save"
+
+[node name="Remove" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Remove"

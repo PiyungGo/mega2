@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://g2lsgmxprfel"]
+
+[ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_hsk5r"]
+
+[resource]
+script = ExtResource("1_hsk5r")
+id = "pfreeze_"
+name = "Process Freeze"
+type = 2
+desc = "(จะหยุดเดิน 1 ตา กับผู้เล่นที่เลือกใช้) \\_(x.x)_/ #Freezeeeezzz..#"
+effect = "pfreeze_"
+metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

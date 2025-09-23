@@ -14,6 +14,10 @@ config/name="megamind"
 run/main_scene="uid://djwjy7vrbuv7s"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
+[autoload]
+
+ChatBus="*res://ChatBus.gd"
+
 [display]
 
 window/size/viewport_width=1280

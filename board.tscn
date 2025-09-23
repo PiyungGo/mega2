@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=33 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
@@ -27,6 +27,7 @@
 [ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
 [ext_resource type="Script" uid="uid://bicpp1st4ryts" path="res://SettingOverlay.gd" id="25_cg1r7"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
+[ext_resource type="Script" uid="uid://bln6nov77qlx7" path="res://ChatPanel.gd" id="28_3pgg5"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mrqbj"]
 content_margin_left = 8.0
@@ -216,9 +217,9 @@ anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
 offset_left = 74.0
-offset_top = -272.0
+offset_top = -419.0
 offset_right = 114.0
-offset_bottom = 250.0
+offset_bottom = 103.0
 grow_vertical = 2
 theme_override_constants/separation = 30
 
@@ -454,9 +455,50 @@ grow_vertical = 0
 scale = Vector2(2.36, 2.36)
 text = "จบ"
 
+[node name="ChatPanel" type="Control" parent="CanvasLayer"]
+custom_minimum_size = Vector2(155.59, 0)
+layout_mode = 3
+anchors_preset = 0
+offset_left = 35.0
+offset_top = 748.0
+offset_right = 196.425
+offset_bottom = 776.86
+scale = Vector2(1.85888, 1.85888)
+script = ExtResource("28_3pgg5")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/ChatPanel"]
+custom_minimum_size = Vector2(160.82, 0)
+layout_mode = 0
+offset_right = 160.82
+offset_bottom = 36.495
+
+[node name="LogScroll" type="ScrollContainer" parent="CanvasLayer/ChatPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 132.01)
+layout_mode = 2
+
+[node name="Log" type="RichTextLabel" parent="CanvasLayer/ChatPanel/VBoxContainer/LogScroll"]
+custom_minimum_size = Vector2(215.76, 122.005)
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 11
+bbcode_enabled = true
+
+[node name="Input" type="HBoxContainer" parent="CanvasLayer/ChatPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ChatInput" type="LineEdit" parent="CanvasLayer/ChatPanel/VBoxContainer/Input"]
+custom_minimum_size = Vector2(190.34, 0.76)
+layout_mode = 2
+
+[node name="SendBtn" type="Button" parent="CanvasLayer/ChatPanel/VBoxContainer/Input"]
+layout_mode = 2
+text = "ส่ง"
+
 [node name="TurnLabel" type="Label" parent="."]
 offset_left = 3409.0
 offset_top = -210.0
 offset_right = 3449.0
 offset_bottom = -187.0
 scale = Vector2(14.6835, 14.6835)
+
+[node name="Obstacles" type="Node2D" parent="."]
+z_index = 1

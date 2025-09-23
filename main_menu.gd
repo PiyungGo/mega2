@@ -2,46 +2,135 @@ extends Control
 
 @onready var main_button: VBoxContainer = $"Main button"
 @onready var option: Panel = $option
-@onready var panel2: Panel = $Panel2
 
-# <<< แก้ path ให้ตรง Scene Tree ปัจจุบัน >>>
+# Panels
+@onready var panel2: Panel = $Panel2
+@onready var panel_3: Panel = $Panel3
+@onready var panel_4: Panel = $Panel4
+@onready var panel_5: Panel = $Panel5
+
+# ====== เนื้อหาแต่ละหน้า (ไว้แก้ใน Editor) ======
 @onready var guide_text: Label = $Panel2/Label/Pages/GuideText
 @onready var guide_image: TextureRect = $Panel2/Label/Pages/GuideImage
+@onready var guide_text_1: Label = $Panel3/Label/Pages/GuideText1
+@onready var guide_image_1: TextureRect = $Panel3/Label/Pages/GuideImage1
+@onready var guide_text_2: Label = $Panel4/Label/Pages/GuideText2
+@onready var guide_image_2: TextureRect = $Panel4/Label/Pages/GuideImage2
+@onready var guide_text_3: Label = $Panel5/Label/Pages/GuideText3
+@onready var guide_image_3: TextureRect = $Panel5/Label/Pages/GuideImage3
 
-@onready var next_button: Button = $Panel2/NextButton
-# รองรับทั้ง BackButton และ Back2 (เลือกอันที่มีอยู่จริง)
-@onready var back_button: Button = $Panel2/BackButton if has_node("Panel2/BackButton") else $Panel2/Back2
+# ====== ปุ่ม Next ======
+@onready var next_button: Button   = $Panel2/NextButton
+@onready var next_button_1: Button = $Panel3/NextButton1
+@onready var next_button_2: Button = $Panel4/NextButton2
+@onready var next_button_3: Button = $Panel5/NextButton3 # ถ้าไม่มี ไม่เป็นไร
 
-# เสียงคลิก (มีค่อยเล่น ไม่มีข้ามได้)
+# ====== ปุ่ม Back เล็กซ้ายล่าง (ย้อนหน้า) ======
+@onready var back_button:   Button = get_node_or_null("Panel2/BackButton")   # หน้า 2 (จะ disabled)
+@onready var back_button_1: Button = get_node_or_null("Panel3/BackButton1")  # หน้า 3 → 2
+@onready var back_button_2: Button = get_node_or_null("Panel4/BackButton2")  # หน้า 4 → 3
+@onready var back_button_3: Button = get_node_or_null("Panel5/BackButton3")  # หน้า 5 → 4
+
+# ====== ปุ่ม Back กลาง (กลับเมนูหลัก) ======
+@onready var back2_p2: Button = get_node_or_null("Panel2/Back2")
+@onready var back2_p3: Button = get_node_or_null("Panel3/Back2")
+@onready var back2_p4: Button = get_node_or_null("Panel4/Back2")
+@onready var back2_p5: Button = get_node_or_null("Panel5/Back2")
+
+# ====== เสียงคลิก ======
 @onready var click_sfx: AudioStreamPlayer = get_node_or_null("ClickSfx")
 
-@export var use_label_initial_text := true
-
-@export var guide_pages: Array[Dictionary] = [
-	{"text": "หน้า 1: วิธีเล่นพื้นฐาน", "image": "res://assets/guide/page1.png"},
-	{"text": "หน้า 2: การทอยลูกเต๋า", "image": "res://assets/guide/page2.png"},
-	{"text": "หน้า 3: การ์ด/การโจมตี", "image": "res://assets/guide/page3.png"},
-	{"text": "หน้า 4: กติกาGAME", "image": "res://assets/guide/page4.png"},
-	{"text": "หน้า 5: การ์ด/การโจมตี", "image": ""} # ว่าง = ไม่แสดงรูป
-]
-
-var guide_index := 0
-var _initial_label_text: String = ""
-var _initial_image_texture: Texture2D = null
+# ====== สถานะ ======
+var _panels: Array[Panel] = []
+var _current_idx := 0
 
 func _ready() -> void:
 	main_button.visible = true
 	option.visible = false
-	panel2.visible = false
 
-	# ต่อสัญญาณปุ่ม (กันพลาด)
-	if next_button and not next_button.pressed.is_connected(_on_NextButton_pressed):
-		next_button.pressed.connect(_on_NextButton_pressed)
-	if back_button and not back_button.pressed.is_connected(_on_BackButton_pressed):
-		back_button.pressed.connect(_on_BackButton_pressed)
+	_panels = [panel2, panel_3, panel_4, panel_5]
+	for p in _panels: p.visible = false
 
+	_connect_buttons()
 	_wire_click_sounds()
 
+# ─────────────────────────────────────────────────────────────
+# ต่อสัญญาณปุ่มทั้งหมด
+func _connect_buttons() -> void:
+	# Next → ไปหน้าถัดไป
+	if next_button   and not next_button.pressed.is_connected(_go_p3): next_button.pressed.connect(_go_p3)
+	if next_button_1 and not next_button_1.pressed.is_connected(_go_p4): next_button_1.pressed.connect(_go_p4)
+	if next_button_2 and not next_button_2.pressed.is_connected(_go_p5): next_button_2.pressed.connect(_go_p5)
+	# หน้า 5 อาจไม่มี next
+
+	# Back เล็กซ้ายล่าง → ย้อนหน้า (Panel2 ไม่มีหน้าก่อนหน้า: ให้กดไม่ได้)
+	if back_button   and not back_button.pressed.is_connected(_noop):         back_button.pressed.connect(_noop)
+	if back_button_1 and not back_button_1.pressed.is_connected(_back_to_p2): back_button_1.pressed.connect(_back_to_p2)
+	if back_button_2 and not back_button_2.pressed.is_connected(_back_to_p3): back_button_2.pressed.connect(_back_to_p3)
+	if back_button_3 and not back_button_3.pressed.is_connected(_back_to_p4): back_button_3.pressed.connect(_back_to_p4)
+
+	# Back กลาง (Back2) → กลับเมนูหลัก
+	if back2_p2 and not back2_p2.pressed.is_connected(_close_guide): back2_p2.pressed.connect(_close_guide)
+	if back2_p3 and not back2_p3.pressed.is_connected(_close_guide): back2_p3.pressed.connect(_close_guide)
+	if back2_p4 and not back2_p4.pressed.is_connected(_close_guide): back2_p4.pressed.connect(_close_guide)
+	if back2_p5 and not back2_p5.pressed.is_connected(_close_guide): back2_p5.pressed.connect(_close_guide)
+
+# ─────────────────────────────────────────────────────────────
+# เมนูหลัก
+func _on_Start_pressed() -> void:
+	get_tree().change_scene_to_file("res://board.tscn")
+
+func _on_setting_pressed() -> void:
+	main_button.visible = false
+	option.visible = true
+
+func _on_exit_pressed() -> void:
+	# ปุ่ม “ออก” ในเมนูหลัก — ปิดเกมทั้งหมด
+	get_tree().quit()
+
+func _on_back_option_pressed() -> void:
+	option.visible = false
+	_close_guide()
+
+# ─────────────────────────────────────────────────────────────
+# เปิดคู่มือ
+func _on_guide_pressed() -> void:
+	main_button.visible = false
+	option.visible = false
+	_show_panel(panel2)
+
+# Next
+func _go_p3() -> void: _show_panel(panel_3)
+func _go_p4() -> void: _show_panel(panel_4)
+func _go_p5() -> void: _show_panel(panel_5)
+
+# Back เล็กซ้ายล่าง (ย้อนหน้า)
+func _back_to_p2() -> void: _show_panel(panel2)
+func _back_to_p3() -> void: _show_panel(panel_3)
+func _back_to_p4() -> void: _show_panel(panel_4)
+
+# ไม่มีหน้าก่อนหน้า (ใช้กับ Back เล็กของหน้าแรก)
+func _noop() -> void: pass
+
+# ปิดคู่มือ → เมนูหลัก
+func _close_guide() -> void:
+	for p in _panels: p.visible = false
+	main_button.visible = true
+	option.visible = false
+
+# helper: แสดง panel เป้าหมาย
+func _show_panel(target: Panel) -> void:
+	for i in _panels.size():
+		var show := (_panels[i] == target)
+		_panels[i].visible = show
+		if show: _current_idx = i
+
+	# จัด z และเปิด/ปิด Back เล็กของหน้าแรก
+	if target and target is Control: target.move_to_front()
+	if back_button: back_button.disabled = (_current_idx == 0) # หน้าแรกกดไม่ได้
+
+# ─────────────────────────────────────────────────────────────
+# เสียงคลิก
 func _wire_click_sounds() -> void:
 	for b in get_tree().get_nodes_in_group("ui_click"):
 		if b is Button and not b.pressed.is_connected(_on_any_button_pressed):
@@ -51,83 +140,3 @@ func _on_any_button_pressed(_btn: Button) -> void:
 	if click_sfx and click_sfx.stream:
 		if click_sfx.playing: click_sfx.stop()
 		click_sfx.play()
-
-func _on_Start_pressed() -> void:
-	get_tree().change_scene_to_file("res://board.tscn")
-
-func _on_setting_pressed() -> void:
-	main_button.visible = false
-	option.visible = true
-
-func _on_exit_pressed() -> void:
-	get_tree().quit()
-
-func _on_back_option_pressed() -> void:
-	option.visible = false
-	panel2.visible = false
-	main_button.visible = true
-
-func _on_guide_pressed() -> void:
-	main_button.visible = false
-	option.visible = false
-	panel2.visible = true
-	guide_index = 0
-
-	# ป้องกัน path ผิด
-	if not is_instance_valid(guide_text) or not is_instance_valid(guide_image):
-		push_error("GuideText หรือ GuideImage หาไม่เจอ (เช็คว่าอยู่ที่ $Panel2/Label/Pages/...)")
-		return
-
-	# เก็บข้อความ+รูปเดิมของหน้าแรก
-	_initial_label_text = guide_text.text
-	_initial_image_texture = guide_image.texture
-
-	if use_label_initial_text and guide_pages.size() > 0:
-		guide_pages[0]["text"] = _initial_label_text
-		_update_nav_buttons()  # หน้าแรกให้คงข้อความจาก Label
-	else:
-		_update_guide_page()
-
-func _on_NextButton_pressed() -> void:
-	if guide_index < guide_pages.size() - 1:
-		guide_index += 1
-		_update_guide_page()
-
-func _on_BackButton_pressed() -> void:
-	if panel2.visible and guide_index > 0:
-		guide_index -= 1
-		_update_guide_page()
-	else:
-		panel2.visible = false
-		main_button.visible = true
-
-func _update_guide_page() -> void:
-	if guide_index == 0 and use_label_initial_text:
-		# หน้า 1: ใช้ข้อความจาก Label; รูปจะใช้จากไฟล์ถ้ากำหนดไว้ ไม่งั้นใช้รูปเดิมใน Editor
-		guide_text.text = _initial_label_text
-
-		var img_path0 := ""
-		if guide_pages.size() > 0 and guide_pages[0].has("image"):
-			img_path0 = String(guide_pages[0]["image"])
-
-		if img_path0 != "" and ResourceLoader.exists(img_path0):
-			guide_image.texture = load(img_path0) as Texture2D
-		else:
-			guide_image.texture = _initial_image_texture
-	else:
-		# หน้าอื่น ๆ: ดึงจาก array
-		var page := guide_pages[guide_index]
-		if page.has("text"):
-			guide_text.text = page["text"]
-
-		var img_path := String(page["image"]) if page.has("image") else ""
-		if img_path != "" and ResourceLoader.exists(img_path):
-			guide_image.texture = load(img_path) as Texture2D
-		else:
-			guide_image.texture = null
-
-	_update_nav_buttons()
-
-func _update_nav_buttons() -> void:
-	next_button.disabled = (guide_index >= guide_pages.size() - 1)
-	back_button.disabled = (guide_index == 0)

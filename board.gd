@@ -66,6 +66,19 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @export var card_peek_px: int = 24            # โผล่พ้นจอไว้บอกว่ามีการ์ด
 @export var card_slide_duration: float = 0.25 # ความเร็วเลื่อน
 @export var card_hide_delay: float = 0.25     # หน่วงเวลาตอนเลื่อนลง เพื่อกันกะพริบ
+# ===== OBSTACLE CONFIG =====
+@export var OBSTACLE_MIN:int = 3
+@export var OBSTACLE_MAX:int = 8
+@export var OBSTACLE_SEEDS:int = 2                  # จำนวนจุดตั้งต้นของคลัสเตอร์
+@export var OBSTACLE_CLUSTER_CHANCE:float = 0.72    # โอกาสขยายแบบจับกลุ่ม (0..1)
+@export var obstacle_texture: Texture2D              # ← ลากรูปสิ่งกีดขวางมาใส่ใน Inspector
+
+@onready var obstacles_root: Node2D = $Obstacles
+
+# เก็บ cell ที่เป็นสิ่งกีดขวาง (ใช้เป็น set)
+var obstacle_cells := {}   # Dictionary acting as set: key=Vector2i, value=true
+
+
 
 @onready var hover_zone: Control = $CanvasLayer/CardBar/HoverZone
 const PROCESS_FREEZE_TURNS := 4   # ← ถ้าอยากให้ 1 เทิร์น เปลี่ยนเป็น 1
@@ -102,6 +115,7 @@ var is_moving: bool = false
 # === Turn system ===
 var turn_order: Array[Sprite2D] = []
 var turn_idx: int = 0
+var prev_player := active_piece
 var active_piece: Sprite2D = null
   # ชิ้นที่ได้เล่นในรอบนี้
 
@@ -171,6 +185,7 @@ func _cache_slot_buttons() -> void:
 
 
 func _ready() -> void:
+    randomize()
     _calc_board_offset()
     _place_four_corners_by_name()
     _snap_and_fit_existing_pieces()
@@ -847,7 +862,6 @@ func _on_use_card_pressed() -> void:
 
     var info := _card_info(card)
     print("[UI] UseCard pressed. slot:", selected_card_index, " name:", info.name, " eff:", info.effect)
-
     var ok := _apply_card_effect(active_piece, card)
     if not ok:
         print("[UI] effect returned false")
@@ -855,11 +869,13 @@ func _on_use_card_pressed() -> void:
 
     # เอาการ์ดออก + mark used
     hand.remove_at(selected_card_index)
+    ChatBus.log_event("status", "ผู้เล่น %s ใช้การ์ด \"%s\"", [active_piece.name, info.name])
+
     hand_by_piece[active_piece] = hand
     used_card_in_round[active_piece] = true
     selected_card_index = -1
     _refresh_card_bar_ui()
-
+    
     # ถ้ายังอยู่โหมดเลือก (teleport/เลือกผู้เล่น) → ห้ามจบเทิร์น
     if teleport_pending or _is_targeting:
         print("[UI] waiting for target click…")
@@ -943,6 +959,8 @@ func _on_skip_pressed() -> void:
     # เดิมมี is_attack_phase → ไม่ใช้แล้ว
     # เข้าสู่ Card Phase เพื่อให้เลือกใช้การ์ด/หรือกดข้ามการ์ด
     _start_card_phase()
+    ChatBus.log_event("system", "%s เลือกข้ามการเดิน (+เงินคืน %d)", [active_piece.name, refund])
+
 
 
 
@@ -1321,7 +1339,7 @@ func _on_dice_rolled(value: int) -> void:
     steps_left = steps_for_current_piece   # เริ่มต้นแต้มเดิน
     dice_has_result = true
     _set_roll_label(steps_for_current_piece, steps_left)
-
+    ChatBus.log_event("system", "%s ทอยได้ %d แต้ม", [active_piece.name, value])
 
 # BFS แบบแมนฮัตตัน
 func _compute_reachable(start: Vector2i, steps: int) -> void:
@@ -1421,11 +1439,16 @@ func _end_turn() -> void:
     turn_idx = (turn_idx + 1) % turn_order.size()
     active_piece = turn_order[turn_idx]
     current_player = _active_player_index()
+    if prev_player:
+        ChatBus.log_event("system", "จบเทิร์นของ %s", [turn_order[prev_idx].name])
+        ChatBus.log_event("system", "เริ่มเทิร์นของ %s", [active_piece.name])
+
 
     # ถ้า wrap กลับมาที่ index 0 = ครบ 1 รอบ
     if turn_idx == 0:
         turn_cycles_done += 1
         draw_card_for_all()
+        _tick_counter_hack_all() 
         _decay_all_def_one_round()    
         _update_round_label()
         if turn_cycles_done >= MAX_TURNS:
@@ -1558,18 +1581,16 @@ func _deal_initial_hands(card_count: int = 5) -> void:
 
     for p in turn_order:
         var hand: Array = []
-
-        # (ถ้ามีของเดิมในมือก็กรอง on-draw ด้วย — ปกติเริ่มเกมจะว่าง)
         var raw = hand_by_piece.get(p, [])
         if raw is Array:
             for c in raw:
-                if c != null and not _on_card_drawn(p, c):
-                    hand.append(c)
+                hand.append(c)
 
-        # แจกไพ่เปิดเกม พร้อมบังคับใช้ใบที่เป็น on-draw ทันที
         for _i in range(card_count):
-            var c: Resource = _draw_random_card()
-            if c != null and not _on_card_drawn(p, c):
+            # เดิม: var c: Resource = _draw_random_card()
+            # ใหม่: ยกเว้น System Failure เฉพาะตอนเริ่มเกม
+            var c: Resource = _draw_random_card_excluding_system_failure()
+            if c != null:
                 hand.append(c)
 
         hand_by_piece[p] = hand
@@ -1577,6 +1598,7 @@ func _deal_initial_hands(card_count: int = 5) -> void:
 
     if card_bar and active_piece:
         _refresh_card_bar_ui()
+
 
 
 
@@ -1716,6 +1738,7 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
         teleport_pending = true
         _begin_teleport_targeting()     # โชว์จุดวาร์ป (cells ว่างทั้งหมด)
         print("[CARD] enter targeting: TELEPORT")
+        ChatBus.log_event("status", "%s กำลังเลือกตำแหน่งวาร์ป", [user.name])
         return true
     # ===============================================
 
@@ -1747,10 +1770,25 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
         # == Counter Hack: ให้บัพ 5 เทิร์น สะท้อนการโจมตีครั้งถัดไป ==
     if norm == "countershield" or norm == "countersheild" or norm == "counterhack" or norm.begins_with("counter"):
         _give_counter_hack(user, 5)   # อายุ 5 เทิร์น
+
         print("[CARD] Counter Hack applied to", user.name)
+        var turns := 5
+        _give_counter_hack(user, turns)
+        ChatBus.log_event(
+            "buff",
+            "%s เปิดใช้งาน Counter Hack (อายุ %d เทิร์น)",
+            [user.name, int(counter_hack_turns.get(user, 0))]
+        )
+
         return true
     if norm == "alldef" or norm == "reflectivesurge" or norm.begins_with("alldef"):
-        _give_all_def(user, 5)      # อายุ 5 เทิร์น
+        var turns := 5
+        _give_all_def(user, turns)
+        ChatBus.log_event(
+            "buff",
+            "%s เปิดใช้งาน Reflective Surge (%d เทิร์น)",
+            [user.name, turns]  # หรือใช้ int(all_def_turns.get(user, 0)) ก็ได้
+        )
         return true
     # == Process Freeze ==
     if norm == "processfreeze" or norm == "pfreeze" or norm.begins_with("freeze"):
@@ -1760,6 +1798,7 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
             return false
         print("[CARD] enter targeting: Process Freeze")
         _enter_select_mode(CardTargetMode.SELECT_PLAYER_FREEZE, enemies)
+        ChatBus.log_event("status", "%s กำลังเลือกเป้าหมาย Process Freeze", [user.name])
         return true
 
     
@@ -1784,6 +1823,7 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
             add_shield(user, 125)
             _notify_center("Security Protocol! โล่ +125 ให้ %s" % user.name)
             print("[CARD] shield +125 to", user.name)
+            ChatBus.log_event("buff", "%s ได้รับโล่ +125 (Security Protocol)", [user.name])
             return true
 
 
@@ -2054,12 +2094,18 @@ func _steal_percent_respecting_shield(victim: Sprite2D, thief: Sprite2D, percent
         var got := _steal_from(thief, victim, want)  # เคารพโล่ของผู้โจมตีตามปกติ
         _notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
         _clear_counter_hack(victim)
+        ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
+    [victim.name, thief.name, got])
+
+
         return got
 
     # ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
     var victim_money := int(money_by_piece.get(victim, 0))
     var want := int(floor(max(0.0, percent) * float(victim_money)))
     if want <= 0: return 0
+    ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันการโจมตีจาก %s", [victim.name, thief.name])
+
     return _steal_from(victim, thief, want)
 
 
@@ -2138,6 +2184,7 @@ func _resolve_card_steal_50_per(target_piece_name: String) -> void:
     if attacker == null:
         _notify_center("ไม่พบผู้เล่นที่ใช้การ์ด")
         return
+
     var victim := pieces_root.get_node_or_null(target_piece_name) as Sprite2D
     if victim == null:
         _notify_center("ไม่พบเป้าหมาย")
@@ -2147,6 +2194,26 @@ func _resolve_card_steal_50_per(target_piece_name: String) -> void:
         return
 
     var got := _steal_percent_respecting_shield(victim, attacker, 0.5)  # 50%
+
+    # --- log ให้ตรง case + จำนวนอาร์กิวเมนต์พอดี ---
+    var cat := ("steal" if got > 0 else "blocked")
+    var msg : String
+    var args: Array
+    if got > 0:
+        msg  = "ผู้เล่น %s ปล้นเงิน %s เป็นจำนวน %d หน่วย ด้วยไพ่ \"Root Access Heist\""
+        args = [attacker.name, victim.name, got]
+    else:
+        msg  = "การปล้นของ %s ถูกป้องกันโดย %s"
+        args = [attacker.name, victim.name]
+    ChatBus.log_event(
+        "steal" if got > 0 else "blocked",
+        ("ผู้เล่น %s ปล้นเงิน %s เป็นจำนวน %d หน่วย ด้วยไพ่ \"Root Access Heist\"" if got > 0
+        else "การปล้นของ %s ถูกป้องกันโดย %s"),
+        [attacker.name, victim.name, got] if got > 0 else [attacker.name, victim.name]
+)
+
+
+    # UI แจ้งกลางจอ
     if got <= 0 and int(shield_by_piece.get(victim, 0)) > 0:
         _notify_center("โล่ของ %s ป้องกันไว้" % victim.name)
     else:
@@ -2157,6 +2224,7 @@ func _resolve_card_steal_50_per(target_piece_name: String) -> void:
     if int(money_by_piece.get(victim, 0)) <= 0:
         _kill_piece(victim)
     _on_card_resolved()
+
 
 
 func _resolve_card_freeze(target_piece_name: String) -> void:
@@ -2177,6 +2245,8 @@ func _resolve_card_freeze(target_piece_name: String) -> void:
     _flash_piece_node(victim)
     _shake_camera_light()
     _on_card_resolved()
+    ChatBus.log_event("status", "%s ใช้ Process Freeze ใส่ %s — จะหยุดเล่น %d เทิร์น",
+        [attacker.name, victim.name, PROCESS_FREEZE_TURNS])
 
 
 func _get_current_player_piece() -> Sprite2D:
@@ -2259,6 +2329,7 @@ func draw_card_for_piece(piece: Sprite2D, count: int = 1) -> int:
         hand.append(card)
     hand_by_piece[piece] = hand
     _refresh_hand_ui_for(piece)
+    ChatBus.log_event("penalty", "ผู้เล่น %s ได้รับการ์ด \"System Failure\" (-200)", [piece.name])
     return drawn
 
 
@@ -2319,6 +2390,7 @@ func _resolve_card_steal_20_per(target_piece_name: String) -> void:
     if attacker == null:
         _notify_center("ไม่พบผู้เล่นที่ใช้การ์ด")
         return
+
     var victim := pieces_root.get_node_or_null(target_piece_name) as Sprite2D
     if victim == null:
         _notify_center("ไม่พบเป้าหมาย")
@@ -2328,6 +2400,24 @@ func _resolve_card_steal_20_per(target_piece_name: String) -> void:
         return
 
     var got := _steal_percent_respecting_shield(victim, attacker, 0.2)  # 20%
+
+    var cat := ("steal" if got > 0 else "blocked")
+    var msg : String
+    var args: Array
+    if got > 0:
+        msg  = "ผู้เล่น %s ขโมยเงิน %s 20%% (%d) ด้วยไพ่ \"Cryptoworm Drain\""
+        args = [attacker.name, victim.name, got]
+    else:
+        msg  = "การขโมยของ %s ถูกป้องกันโดย %s"
+        args = [attacker.name, victim.name]
+    ChatBus.log_event(
+        "steal" if got > 0 else "blocked",
+        ("ผู้เล่น %s ขโมยเงิน %s 20%% (%d) ด้วยไพ่ \"Cryptoworm Drain\"" if got > 0
+        else "การขโมยของ %s ถูกป้องกันโดย %s"),
+        [attacker.name, victim.name, got] if got > 0 else [attacker.name, victim.name]
+)
+
+
     if got <= 0 and int(shield_by_piece.get(victim, 0)) > 0:
         _notify_center("โล่ของ %s ป้องกันไว้" % victim.name)
     else:
@@ -2338,6 +2428,7 @@ func _resolve_card_steal_20_per(target_piece_name: String) -> void:
     if int(money_by_piece.get(victim, 0)) <= 0:
         _kill_piece(victim)
     _on_card_resolved()
+
 
 
 
@@ -2420,6 +2511,9 @@ func apply_damage_from(attacker: Sprite2D, victim: Sprite2D, dmg: int, bypass_al
         _notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
         _clear_all_def(victim)
         _update_money_ui()
+        ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
+    [victim.name, attacker.name])
+
         return
     apply_damage(victim, dmg)  # ของเดิม
 
@@ -2459,3 +2553,159 @@ func _on_card_drawn(piece: Sprite2D, card: Variant) -> bool:
         return true   # ใช้แล้วทิ้ง ไม่ต้องใส่มือ
 
     return false
+
+func _norm(s: String) -> String:
+    return s.strip_edges().to_lower().replace("_","").replace("-","").replace(" ","")
+    
+func _is_system_failure(card: Variant) -> bool:
+    var info := _card_info(card)
+    var eff := String(info.effect)
+    var norm := _norm(eff)
+    # กันพลาด ถ้าเผื่อใช้ ID ก็เช็คเพิ่มได้
+    var cid := ""
+    if card is CardData:
+        cid = String((card as CardData).id)
+    elif card is Dictionary:
+        cid = String(card.get("id",""))
+
+    return norm == "gones200" or cid == "system_failure"
+
+func _draw_random_card_excluding_system_failure() -> Resource:
+    var db := _get_card_db()
+    if db == null: return null
+
+    var pool: Array = []
+    var cards_var: Variant = db.get("cards")
+    if cards_var is Array:
+        for c in (cards_var as Array):
+            if _is_system_failure(c):
+                continue
+            pool.append(c)
+
+    if pool.is_empty():
+        return null
+    return pool[randi() % pool.size()]
+
+func cell_to_pos(cell: Vector2i) -> Vector2:
+    # วางกึ่งกลางช่อง (ถ้า sprite คุณอิงมุมซ้ายบน ให้เอา +CELL_SIZE/2 ออก)
+    return Vector2(cell.x * CELL_SIZE + CELL_SIZE / 2, cell.y * CELL_SIZE + CELL_SIZE / 2)
+
+func in_bounds(c: Vector2i) -> bool:
+    return c.x >= 0 and c.y >= 0 and c.x < BOARD_SIZE and c.y < BOARD_SIZE
+
+func generate_obstacles() -> void:
+    randomize()
+    _clear_obstacles_visual()
+
+    var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
+
+    # ห้ามเกิดบนช่องเกิดผู้เล่น + ช่องที่มีหมากอยู่
+    var forbidden := _collect_forbidden_cells()
+
+    var added := 0
+    var tried := 0
+    var max_try := 500
+
+    # เลือก seed จำนวน OBSTACLE_SEEDS ก่อน
+    var seeds: Array[Vector2i] = []
+
+    while seeds.size() < OBSTACLE_SEEDS and tried < max_try:
+        tried += 1
+        var c := Vector2i(randi_range(0, BOARD_SIZE - 1), randi_range(0, BOARD_SIZE - 1))
+        if not in_bounds(c): 
+            continue
+        if forbidden.has(c): 
+            continue
+        if obstacle_cells.has(c): 
+            continue
+        obstacle_cells[c] = true
+        seeds.append(c)
+        added += 1
+        _spawn_obstacle_sprite(c)
+
+    # ขยายจากแต่ละ seed แบบคลัสเตอร์
+    var frontier: Array[Vector2i] = seeds.duplicate()
+
+    while added < total_target and frontier.size() > 0 and tried < max_try:
+        tried += 1
+        # หยิบจุดสุ่มจากแนวหน้า
+        var base_idx := randi_range(0, frontier.size() - 1)
+        var base := frontier[base_idx]
+
+        # เพื่อนบ้าน 4 ทิศ (จะใช้ 8 ทิศก็ได้ถ้าต้องการคลัสเตอร์แน่นขึ้น)
+        var neighbors := [
+            Vector2i(base.x + 1, base.y),
+            Vector2i(base.x - 1, base.y),
+            Vector2i(base.x, base.y + 1),
+            Vector2i(base.x, base.y - 1)
+        ]
+
+        # สุ่มเรียงลำดับเล็กน้อย
+        neighbors.shuffle()
+
+        var grew := false
+        for n in neighbors:
+            if added >= total_target:
+                break
+            if not in_bounds(n): 
+                continue
+            if forbidden.has(n): 
+                continue
+            if obstacle_cells.has(n): 
+                continue
+
+            # ความน่าจะเป็นในการ “โต” ต่อเนื่อง เพื่อให้จับกลุ่ม
+            if randf() <= OBSTACLE_CLUSTER_CHANCE or randf() <= 0.18:
+                obstacle_cells[n] = true
+                added += 1
+                frontier.append(n)
+                _spawn_obstacle_sprite(n)
+                grew = true
+
+        # ถ้าจุดนี้ไม่โตต่อ ให้ดึงออกจากแนวหน้าเพื่อลดลูปค้าง
+        if not grew:
+            frontier.remove_at(base_idx)
+
+    # (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
+    # ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
+
+func _collect_forbidden_cells() -> Dictionary:
+    var f := {}
+
+    # จุดเกิด 4 มุม (ถ้าคุณใช้ตำแหน่งเกิดอื่น ให้แทนค่าใหม่)
+    var spawns := [
+        Vector2i(0, 0),
+        Vector2i(0, BOARD_SIZE - 1),
+        Vector2i(BOARD_SIZE - 1, 0),
+        Vector2i(BOARD_SIZE - 1, BOARD_SIZE - 1),
+    ]
+    for s in spawns:
+        f[s] = true
+
+    # ตำแหน่งหมากปัจจุบัน (ถ้าคุณมี map piece_cells อยู่แล้ว ให้ใช้มัน)
+    if typeof(pieces_root) != TYPE_NIL:
+        for piece in pieces_root.get_children():
+            if not piece.has_meta("cell"):
+                continue
+            var c: Vector2i = piece.get_meta("cell")
+            f[c] = true
+
+    return f
+
+func _spawn_obstacle_sprite(cell: Vector2i) -> void:
+    if obstacle_texture == null:
+        return
+    var s := Sprite2D.new()
+    s.texture = obstacle_texture
+    s.centered = true
+    s.position = cell_to_pos(cell)
+    # ถ้ารูปคุณพอดีช่องอยู่แล้ว ไม่ต้อง scale; ถ้าใหญ่/เล็กเกินไป ปรับที่นี่
+    # s.scale = Vector2(CELL_SIZE / obstacle_texture.get_width(), CELL_SIZE / obstacle_texture.get_height())
+    # เก็บ cell ไว้ที่ meta เผื่อดีบัก
+    s.set_meta("cell", cell)
+    obstacles_root.add_child(s)
+
+func _clear_obstacles_visual() -> void:
+    for c in obstacles_root.get_children():
+        c.queue_free()
+    obstacle_cells.clear()

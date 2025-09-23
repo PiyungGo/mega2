@@ -5,7 +5,7 @@
 
 [sub_resource type="Resource" id="Resource_m0s68"]
 script = ExtResource("1_m640w")
-id = &"steal_100"
+id = "steal_100"
 name = "Data Skimmer"
 type = 0
 desc = "(ขโมยเงิน 100) ดักจับข้อมูลธุรกรรมจากธนาคารนคร"

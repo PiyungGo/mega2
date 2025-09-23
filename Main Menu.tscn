@@ -121,10 +121,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -12.0
-offset_top = -7.0
-offset_right = 30.0
-offset_bottom = 24.0
+offset_left = -19.0
+offset_top = -16.0
+offset_right = 23.0
+offset_bottom = 15.0
 grow_horizontal = 2
 grow_vertical = 2
 scale = Vector2(1.00352, 1.00298)
@@ -235,7 +235,7 @@ text = "MONEY HUNT"
 
 [node name="780006338_710747(online-audio-converter_com)" type="AudioStreamPlayer" parent="Main button"]
 stream = ExtResource("2_i5qic")
-volume_db = 0.148
+volume_db = -5.474
 autoplay = true
 bus = &"Music"
 
@@ -349,7 +349,6 @@ theme_override_font_sizes/font_size = 20
 text = "Music"
 
 [node name="Panel2" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -400,31 +399,76 @@ offset_right = 336.0
 offset_bottom = 163.0
 
 [node name="GuideText" type="Label" parent="Panel2/Label/Pages"]
-layout_mode = 0
-offset_left = 23.0
-offset_top = 191.0
-offset_right = 995.0
-offset_bottom = 555.0
-theme_override_font_sizes/font_size = 22
-text = "หน้าเมนูหลักของเกมประกอบไปด้วย 5ปุ่ม ได้แก่  
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 229.0
+offset_top = -2.5
+offset_right = 777.0
+offset_bottom = 184.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 27
+text = "หน้าเมนูหลักของเกมประกอบไปด้วย 4 ปุ่ม ได้แก่  
 
-1.สร้างห้อง เมื่อทำการกดจะนำพาผู้เล่นเข้าสู่การระบบสร้างห้อง
-2.เข้าร่วมเซิร์ฟเวอร์เมื่อทำการกดจะนำผู้เล่นมาที่หน้าเลือกเซิร์ฟเวอร์เพื่อเลือกเซิร์ฟเวอร์ที่ต้องการเข้าร่วม
-3.ตั้งค่า จะมีระบบลดเสียงเพิ่มเสียงให้ปรับ และ เปลี่ยนภาษา
-4.คู่มือการเล่น จะแสดงข้อความอธิบายการเล่นคร่าวๆภายในเกม ให้ผู้เล่นเข้าใจหลักการเล่นเกม
-5.ออก"
+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText2" type="Label" parent="Panel2/Label/Pages"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = -9.0
+offset_top = 290.5
+offset_right = 460.0
+offset_bottom = 435.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 17
+text = "1.สร้างห้อง 
+เมื่อทำการกดจะนำพาผู้เล่นเข้าสู่การระบบสร้างห้อง
+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText3" type="Label" parent="Panel2/Label/Pages"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 451.0
+offset_top = 301.5
+offset_right = 1097.0
+offset_bottom = 446.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 17
+text = "2.เข้าร่วมเซิร์ฟ 
+เวอร์เมื่อทำการกดจะนำผู้เล่นมาที่หน้าเลือกเซิร์ฟเวอร์ 
+เพื่อเลือกเซิร์ฟเวอร์ที่ต้องการเข้าร่วม
+"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GuideImage" type="TextureRect" parent="Panel2/Label/Pages"]
 layout_mode = 0
-offset_left = 33.0
-offset_top = 149.0
-offset_right = 213.0
-offset_bottom = 329.0
+offset_left = 66.0
+offset_top = 186.0
+offset_right = 378.0
+offset_bottom = 394.0
 texture = ExtResource("2_xwd2w")
 expand_mode = 3
-stretch_mode = 5
+stretch_mode = 6
+
+[node name="GuideImage2" type="TextureRect" parent="Panel2/Label/Pages"]
+layout_mode = 0
+offset_left = 600.0
+offset_top = 186.0
+offset_right = 912.0
+offset_bottom = 391.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel2" groups=["ui_click"]]
 layout_mode = 1
@@ -472,10 +516,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -499.0
-offset_top = -318.0
-offset_right = 500.0
-offset_bottom = 312.0
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
@@ -517,21 +561,70 @@ offset_bottom = 163.0
 
 [node name="GuideText1" type="Label" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = -11.0
-offset_top = 42.0
-offset_right = 961.0
-offset_bottom = 277.0
-theme_override_font_sizes/font_size = 22
-text = "วิธีเล่นเเละกฎกติกา"
+offset_left = -180.0
+offset_top = 299.0
+offset_right = 549.0
+offset_bottom = 434.0
+theme_override_font_sizes/font_size = 17
+text = "3.ตั้งค่า 
+จะมีระบบลดเสียงเพิ่มเสียง 
+และระบบเต็มหรือย่อหน้าจอ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText2" type="Label" parent="Panel3/Label/Pages"]
+layout_mode = 0
+offset_left = 535.0
+offset_top = 307.0
+offset_right = 1091.0
+offset_bottom = 432.0
+theme_override_font_sizes/font_size = 17
+text = "4.คู่มือการเล่น 
+จะแสดงข้อความอธิบายการเล่นคร่าวๆภายในเกม 
+ให้ผู้เล่นเข้าใจหลักการเล่นเกม"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText3" type="Label" parent="Panel3/Label/Pages"]
+layout_mode = 0
+offset_left = 215.0
+offset_top = 413.0
+offset_right = 771.0
+offset_bottom = 538.0
+theme_override_font_sizes/font_size = 18
+text = "5.ออก "
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GuideImage1" type="TextureRect" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = 27.5
-offset_top = 263.0
-offset_right = 363.5
-offset_bottom = 415.0
+offset_left = 49.0
+offset_top = 125.0
+offset_right = 333.0
+offset_bottom = 320.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage2" type="TextureRect" parent="Panel3/Label/Pages"]
+layout_mode = 0
+offset_left = 660.0
+offset_top = 124.0
+offset_right = 951.0
+offset_bottom = 324.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage3" type="TextureRect" parent="Panel3/Label/Pages"]
+layout_mode = 0
+offset_left = 363.0
+offset_top = 309.0
+offset_right = 613.0
+offset_bottom = 448.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel3" groups=["ui_click"]]
 layout_mode = 1
@@ -624,26 +717,49 @@ offset_bottom = 163.0
 
 [node name="GuideText2" type="Label" parent="Panel4/Label/Pages"]
 layout_mode = 0
-offset_left = 13.0
-offset_top = 183.0
-offset_right = 985.0
-offset_bottom = 418.0
-theme_override_font_sizes/font_size = 22
-text = "
+offset_left = -116.0
+offset_top = 107.0
+offset_right = 1100.0
+offset_bottom = 345.0
+theme_override_font_sizes/font_size = 23
+text = "กติกา
+ ในเกมกติกาคือผู้เล่นต้องเล่นเกมให้ครบเทิร์นและมีเงินมากที่สุด ผู้เล่นจะเป็นฝ่ายชนะ
 
-2.เข้าร่วมเซิร์ฟเวอร์เมื่อทำการกดจะนำผู้เล่นมาที่หน้าเลือกเซิร์ฟเวอร์เพื่อเลือกเซิร์ฟเวอร์ที่ต้องการเข้าร่วม
-3.ตั้งค่า จะมีระบบลดเสียงเพิ่มเสียงให้ปรับ และ เปลี่ยนภาษา
-4.คู่มือการเล่น จะแสดงข้อความอธิบายการเล่นคร่าวๆภายในเกม ให้ผู้เล่นเข้าใจหลักการเล่นเกม
-5.ออก"
+การควบคุม
+ ผู้เล่นต้องทำการทอยลูกเต๋าเพื่อกำหนดการเดินในแต่ละเทิร์นผู้เล่น
+สามารถใช้เม้าท์ในการคลิกภายในช่องเพื่อเลือกเดินได้ตามต้องการ"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GuideImage2" type="TextureRect" parent="Panel4/Label/Pages"]
 layout_mode = 0
 offset_left = 53.0
-offset_top = 387.0
-offset_right = 389.0
-offset_bottom = 539.0
+offset_top = 345.0
+offset_right = 320.0
+offset_bottom = 483.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage3" type="TextureRect" parent="Panel4/Label/Pages"]
+layout_mode = 0
+offset_left = 363.0
+offset_top = 345.0
+offset_right = 630.0
+offset_bottom = 483.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage4" type="TextureRect" parent="Panel4/Label/Pages"]
+layout_mode = 0
+offset_left = 697.0
+offset_top = 345.0
+offset_right = 964.0
+offset_bottom = 483.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel4" groups=["ui_click"]]
 layout_mode = 1
@@ -736,26 +852,123 @@ offset_bottom = 163.0
 
 [node name="GuideText3" type="Label" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 13.0
-offset_top = 183.0
-offset_right = 985.0
-offset_bottom = 418.0
-theme_override_font_sizes/font_size = 22
-text = "
+offset_left = -3.0
+offset_top = 22.0
+offset_right = 969.0
+offset_bottom = 257.0
+theme_override_font_sizes/font_size = 26
+text = "ขั้นตอนการเล่น"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-เลือกเซิร์ฟเวอร์ที่ต้องการเข้าร่วม
-3.ตั้งค่า จะมีระบบลดเสียงเพิ่มเสียงให้ปรับ และ เปลี่ยนภาษา
-4.คู่มือการเล่น จะแสดงข้อความอธิบายการเล่นคร่าวๆภายในเกม ให้ผู้เล่นเข้าใจหลักการเล่นเกม
-5.ออก"
+[node name="GuideText4" type="Label" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = -103.0
+offset_top = 188.0
+offset_right = 430.0
+offset_bottom = 423.0
+theme_override_font_sizes/font_size = 16
+text = "เริ่มแรกหลังจาก
+เข้ามาในเกมผู้เล่นจะได้รับการ์ด5ใบแบบสุ่ม"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText5" type="Label" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 255.0
+offset_top = 187.0
+offset_right = 745.0
+offset_bottom = 422.0
+theme_override_font_sizes/font_size = 16
+text = "หากผู้เล่นเดินไปถึงที่ตัวอาคารจะเกิดแอ็คชัน
+ที่แตกต่างกันไปตามพื้นที่หรือมีการให้สุ่มไพ่ลึกลับ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText6" type="Label" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 631.0
+offset_top = 210.0
+offset_right = 1030.0
+offset_bottom = 398.0
+theme_override_font_sizes/font_size = 15
+text = "ผู้เล่นจะต้องดำเนินการเล่นเพื่อทำให้มีเงินมากที่สุด
+ในตานั้น เพื่อที่ผู้เล่นจะเป็นฝ่ายชนะ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText7" type="Label" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 132.0
+offset_top = 371.0
+offset_right = 531.0
+offset_bottom = 559.0
+theme_override_font_sizes/font_size = 17
+text = "ผู้เล่นต้องทอยลูกเต๋าเพื่อสุ่มจำนวนการเดิน"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideText8" type="Label" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 496.0
+offset_top = 421.0
+offset_right = 848.0
+offset_bottom = 534.0
+theme_override_font_sizes/font_size = 17
+text = "หากผู้เล่นอยู่ใกล้เคียงกับผู้เล่นคนอื่น
+จะสามารถใช้การ์ดโจมตี ป้องกัน ก่อนจะจบเทิร์นได้"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GuideImage3" type="TextureRect" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 53.0
-offset_top = 387.0
-offset_right = 389.0
-offset_bottom = 539.0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage4" type="TextureRect" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 378.0
+offset_top = 170.0
+offset_right = 613.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage5" type="TextureRect" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 708.0
+offset_top = 165.0
+offset_right = 943.0
+offset_bottom = 271.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage6" type="TextureRect" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 215.0
+offset_top = 345.0
+offset_right = 450.0
+offset_bottom = 451.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GuideImage7" type="TextureRect" parent="Panel5/Label/Pages"]
+layout_mode = 0
+offset_left = 549.0
+offset_top = 345.0
+offset_right = 784.0
+offset_bottom = 451.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel5" groups=["ui_click"]]
 layout_mode = 1
@@ -783,6 +996,556 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
 text = "Back"
 
 [node name="BackButton3" type="Button" parent="Panel5" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
+[node name="Panel6" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="NextButton4" type="Button" parent="Panel6" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="Label" type="Label" parent="Panel6"]
+layout_mode = 0
+offset_left = 1.5
+offset_top = 1.0
+offset_right = 1000.5
+offset_bottom = 101.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pages" type="Control" parent="Panel6/Label"]
+anchors_preset = 0
+offset_top = -2.0
+offset_right = 336.0
+offset_bottom = 163.0
+
+[node name="GuideText4" type="Label" parent="Panel6/Label/Pages"]
+layout_mode = 0
+offset_left = -3.0
+offset_top = 22.0
+offset_right = 969.0
+offset_bottom = 257.0
+theme_override_font_sizes/font_size = 26
+text = "6"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideImage4" type="TextureRect" parent="Panel6/Label/Pages"]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="Back2" type="Button" parent="Panel6" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -189.0
+offset_top = -119.0
+offset_right = 208.0
+offset_bottom = -33.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="BackButton4" type="Button" parent="Panel6" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
+[node name="Panel7" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="NextButton5" type="Button" parent="Panel7" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="Label" type="Label" parent="Panel7"]
+layout_mode = 0
+offset_left = 1.5
+offset_top = 1.0
+offset_right = 1000.5
+offset_bottom = 101.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pages" type="Control" parent="Panel7/Label"]
+anchors_preset = 0
+offset_top = -2.0
+offset_right = 336.0
+offset_bottom = 163.0
+
+[node name="GuideText5" type="Label" parent="Panel7/Label/Pages"]
+layout_mode = 0
+offset_left = -3.0
+offset_top = 22.0
+offset_right = 969.0
+offset_bottom = 257.0
+theme_override_font_sizes/font_size = 26
+text = "ขั้นตอนการเล่น7"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideImage5" type="TextureRect" parent="Panel7/Label/Pages"]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="Back2" type="Button" parent="Panel7" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -189.0
+offset_top = -119.0
+offset_right = 208.0
+offset_bottom = -33.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="BackButton5" type="Button" parent="Panel7" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
+[node name="Panel8" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="NextButton6" type="Button" parent="Panel8" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="Label" type="Label" parent="Panel8"]
+layout_mode = 0
+offset_left = 1.5
+offset_top = 1.0
+offset_right = 1000.5
+offset_bottom = 101.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pages" type="Control" parent="Panel8/Label"]
+anchors_preset = 0
+offset_top = -2.0
+offset_right = 336.0
+offset_bottom = 163.0
+
+[node name="GuideText6" type="Label" parent="Panel8/Label/Pages"]
+layout_mode = 0
+offset_left = -3.0
+offset_top = 22.0
+offset_right = 969.0
+offset_bottom = 257.0
+theme_override_font_sizes/font_size = 26
+text = "8"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideImage6" type="TextureRect" parent="Panel8/Label/Pages"]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="Back2" type="Button" parent="Panel8" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -189.0
+offset_top = -119.0
+offset_right = 208.0
+offset_bottom = -33.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="BackButton6" type="Button" parent="Panel8" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
+[node name="Panel9" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="NextButton7" type="Button" parent="Panel9" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="Label" type="Label" parent="Panel9"]
+layout_mode = 0
+offset_left = 1.5
+offset_top = 1.0
+offset_right = 1000.5
+offset_bottom = 101.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pages" type="Control" parent="Panel9/Label"]
+anchors_preset = 0
+offset_top = -2.0
+offset_right = 336.0
+offset_bottom = 163.0
+
+[node name="GuideText7" type="Label" parent="Panel9/Label/Pages"]
+layout_mode = 0
+offset_left = -3.0
+offset_top = 22.0
+offset_right = 969.0
+offset_bottom = 257.0
+theme_override_font_sizes/font_size = 26
+text = "9"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideImage7" type="TextureRect" parent="Panel9/Label/Pages"]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="Back2" type="Button" parent="Panel9" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -189.0
+offset_top = -119.0
+offset_right = 208.0
+offset_bottom = -33.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="BackButton7" type="Button" parent="Panel9" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 19.0
+offset_top = -103.0
+offset_right = 159.0
+offset_bottom = -37.0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "Back"
+
+[node name="Panel10" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -499.5
+offset_top = -315.0
+offset_right = 499.5
+offset_bottom = 315.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ht6vt")
+
+[node name="NextButton8" type="Button" parent="Panel10" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -107.0
+offset_right = -16.0
+offset_bottom = -37.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 30
+text = "หน้าถัดไป"
+
+[node name="Label" type="Label" parent="Panel10"]
+layout_mode = 0
+offset_left = 1.5
+offset_top = 1.0
+offset_right = 1000.5
+offset_bottom = 101.0
+theme_override_fonts/font = SubResource("FontFile_bcalf")
+theme_override_font_sizes/font_size = 70
+theme_override_styles/normal = SubResource("StyleBoxFlat_6viy2")
+text = "HOW TO PLAY ?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Pages" type="Control" parent="Panel10/Label"]
+anchors_preset = 0
+offset_top = -2.0
+offset_right = 336.0
+offset_bottom = 163.0
+
+[node name="GuideText8" type="Label" parent="Panel10/Label/Pages"]
+layout_mode = 0
+offset_left = 59.0
+offset_top = 159.0
+offset_right = 1031.0
+offset_bottom = 394.0
+theme_override_font_sizes/font_size = 26
+text = "10"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GuideImage8" type="TextureRect" parent="Panel10/Label/Pages"]
+layout_mode = 0
+offset_left = 55.0
+offset_top = 170.0
+offset_right = 290.0
+offset_bottom = 276.0
+texture = ExtResource("2_xwd2w")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="Back2" type="Button" parent="Panel10" groups=["ui_click"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -189.0
+offset_top = -119.0
+offset_right = 208.0
+offset_bottom = -33.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 1)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 1)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dvdtt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7yr4w")
+theme_override_styles/normal = SubResource("StyleBoxFlat_7yr4w")
+text = "Back"
+
+[node name="BackButton8" type="Button" parent="Panel10" groups=["ui_click"]]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -828,3 +1591,23 @@ volume_db = -8.211
 [connection signal="pressed" from="Panel5/Back2" to="." method="_on_back_option_pressed"]
 [connection signal="pressed" from="Panel5/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel5/BackButton3" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="Panel6/NextButton4" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel6/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel6/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel6/BackButton4" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="Panel7/NextButton5" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel7/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel7/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel7/BackButton5" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="Panel8/NextButton6" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel8/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel8/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel8/BackButton6" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="Panel9/NextButton7" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel9/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel9/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel9/BackButton7" to="." method="_on_back_button_pressed"]
+[connection signal="pressed" from="Panel10/NextButton8" to="." method="_on_next_button_pressed"]
+[connection signal="pressed" from="Panel10/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel10/Back2" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Panel10/BackButton8" to="." method="_on_back_button_pressed"]

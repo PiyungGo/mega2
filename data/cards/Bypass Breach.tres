@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://d4mcqvgl7hydg"]
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://d4mcqvgl7hydg"]
 
 [ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_3atwh"]
+[ext_resource type="Texture2D" uid="uid://djbikfvel6jf8" path="res://Asset_UWU/S__5169164_0.png" id="1_nxx54"]
 
 [resource]
 script = ExtResource("1_3atwh")
@@ -8,5 +9,6 @@ id = "Pir_steal_100"
 name = "Bypass Breach"
 type = 0
 desc = "(ขโมยเงิน 100 แบบทะลุการป้องกัน) ประตูหน้ามันแข็ง ก็อ้อมเข้าด้านหลังซะสิ"
-effect = "Pir_steal_100"
+effect = "ขโมยเงิน 100"
+icon = ExtResource("1_nxx54")
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

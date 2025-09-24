@@ -8,5 +8,5 @@ id = "shield_50"
 name = "Firewall Patch"
 type = 1
 desc = "(ป้องกัน 50) อัพเดตไฟล์วอร์ลให้เป็นเวอร์ชั่นล่าสุดเสมอ "
-effect = "shield_50"
+effect = "ป้องกัน 50"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

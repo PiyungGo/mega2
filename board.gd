@@ -45,6 +45,10 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @export var piece_script: Script                # res://Piece.gd (ไม่บังคับ)
 @export var piece_scale_factor: float = 1.0     # ขยาย/ย่อหมากเพิ่มเติม
 @export var piece_y_offset: float = -2.0        # ยกขึ้นกันเท้าตกขอบ
+# ==== CARD BACKGROUNDS (ใส่ในส่วน CONFIG) ====
+@export var card_bg_attack:  Texture2D    # รูปพื้นหลังไพ่โจมตี
+@export var card_bg_defense: Texture2D    # รูปพื้นหลังไพ่ป้องกัน
+@export var card_bg_mystery: Texture2D    # รูปพื้นหลังไพ่อื่น ๆ / เสริม
 
 @export var hp_start: int = 1000
 @export var WinPanelScene: PackedScene
@@ -58,6 +62,33 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @onready var turn_label: Label = topbar.get_node_or_null("TurnLabel") if topbar else null
 @onready var settings_btn: Button = topbar.get_node_or_null("SettingsBtn") if topbar else null
 @onready var quit_btn_top: Button = topbar.get_node_or_null("QuitBtn") if topbar else null
+
+# ===== BUILDING CONFIG =====
+enum Building { BANK, DARKWEB, CYBER_STATION, LAB, DATA_HUB, ARTANIA }
+
+@export var BUILDING_MIN := 6
+@export var BUILDING_MAX := 6      # จำนวนสุ่มต่อแผนที่ (ปรับได้)
+@export var BUILDING_COOLDOWNS := { # คูลดาวน์เป็น “รอบ” (ครบทุกคน 1 รอบ = -1)
+    Building.BANK:            6,
+    Building.DARKWEB:         6,
+    Building.CYBER_STATION:   5,
+    Building.LAB:             4,
+    Building.DATA_HUB:        3,
+    Building.ARTANIA:         4,
+}
+
+# เท็กซ์เจอร์ของอาคาร (กิน 1 tile ทั้งหมด)
+@export var tex_bank:           Texture2D     # เซิร์ฟเวอร์ธนาคาร
+@export var tex_darkweb:        Texture2D     # ดาร์คเว็บ
+@export var tex_cyber_station:  Texture2D     # สถานีไซเบอร์
+@export var tex_lab:            Texture2D     # ห้องปฏิบัติการ
+@export var tex_data_hub:       Texture2D     # จุดส่งข้อมูล
+@export var tex_artania:        Texture2D     # บริษัทอาทาเนีย
+
+# ไว้ใกล้ๆ โซน CONFIG
+@export var buildings_root_path: NodePath        # ตั้งค่าใน Inspector ได้
+@export var SPAWN_SAFE_RADIUS:int = 1   # 1 = ห้ามติดขอบรอบช่องเกิด (แมนฮัตตัน)
+
 
 # ป๊อปอัปยืนยันออกเกม (ถ้าไม่มีในฉาก ให้เราสร้างเองได้)
 @export var quit_confirm_path: NodePath
@@ -74,11 +105,10 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @export var obstacle_texture: Texture2D              # ← ลากรูปสิ่งกีดขวางมาใส่ใน Inspector
 
 @onready var obstacles_root: Node2D = $Obstacles
-
 # เก็บ cell ที่เป็นสิ่งกีดขวาง (ใช้เป็น set)
 var obstacle_cells := {}   # Dictionary acting as set: key=Vector2i, value=true
 
-
+@export var OBSTACLE_MIN_DIST:int = 2 # ระยะห่างขั้นต่ำระหว่างสิ่งกีดขวาง (0 = ปิด)
 
 @onready var hover_zone: Control = $CanvasLayer/CardBar/HoverZone
 const PROCESS_FREEZE_TURNS := 4   # ← ถ้าอยากให้ 1 เทิร์น เปลี่ยนเป็น 1
@@ -173,23 +203,37 @@ var teleport_pending: bool = false    # โหมดเลือกจุดว�
 @onready var slots_container: HBoxContainer = card_bar.get_node_or_null("Slots") if card_bar else null
 @export var card_db_path: String = "res://data/cards/card_database.tres"
 @export var card_db: CardDatabase
+var _flash_tw_by_piece: Dictionary[Sprite2D, Tween] = {}
 var slot_buttons: Array[Button] = []
 
 func _cache_slot_buttons() -> void:
     slot_buttons.clear()
     if slots_container:
-        for i in range(1, 6):
+        for i in range(1, 9):
             var b := slots_container.get_node_or_null("Slot%d" % i) as Button
             if b:
                 slot_buttons.append(b)
 
+@onready var grid_origin: Node2D = $GridOrigin  # ถ้าไม่มี node นี้ จะ fallback วิธี B
 
 func _ready() -> void:
+    if texture:
+        var tex_size = texture.get_size() * scale
+        CELL_SIZE = int(tex_size.x / BOARD_SIZE)
+        print("CALIBRATED CELL_SIZE = ", CELL_SIZE)
     randomize()
+    _calc_board_geom()
     _calc_board_offset()
     _place_four_corners_by_name()
     _snap_and_fit_existing_pieces()
     _rebuild_nodes_map()
+    generate_obstacles()
+    if buildings_root == null:
+        buildings_root = Node2D.new()
+        buildings_root.name = "Buildings"
+        add_child(buildings_root)   # ติดไว้ใต้ Board
+    # จากนั้นค่อยสุ่มอาคาร
+    generate_buildings()
     _setup_money()
     _setup_owners_by_name()
     _update_money_ui()
@@ -204,7 +248,9 @@ func _ready() -> void:
         push_warning("card_db is not set; no cards loaded")
 
     # แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-    _deal_initial_hands(5)
+    # _ready()
+    _deal_initial_hands(INITIAL_HAND)
+
 
     await get_tree().process_frame
     _setup_card_bar_slide()
@@ -390,7 +436,7 @@ func _start_turns() -> void:
     active_piece = turn_order[turn_idx]
     current_player = _active_player_index()
     _update_turn_ui()             # เดิมที่ใช้ข้อความ Turn:
-    _update_money_ui()  
+    _update_money_ui()
     # กันพลาด
     if active_piece == null:
         push_error("active_piece is null (turn_order empty?)")
@@ -403,7 +449,7 @@ func _start_turns() -> void:
     print("TURN ORDER =", turn_order.map(func(n): return n.name))
     print("ACTIVE     =", active_piece.name)
 
-@export var INITIAL_HAND: int = 3
+@export var INITIAL_HAND: int = 5
 
 
 func _fit_sprite_to_cell(s: Sprite2D, padding: float = 0.10) -> void:
@@ -458,6 +504,7 @@ func _cell_center(c: Vector2i) -> Vector2:
 func _draw() -> void:
     _draw_selection()
     _draw_reachable_dots()
+    _highlight_walkable(reachable)
     
     # ไฮไลท์ชิ้นที่เลือก
     if selected_cell != Vector2i(-1, -1):
@@ -480,10 +527,13 @@ func _draw() -> void:
 func _unhandled_input(e: InputEvent) -> void:
     # --- โหมดวาร์ปจาก Trace Jump ---
     if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+        # ใน _unhandled_input() บล็อก teleport_pending
         var cell := _pixel_to_cell(get_global_mouse_position())
         if not _in_bounds(cell): return
+        if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
         if _is_occupied(cell): return
         if active_piece == null: return
+
 
         # ย้ายตัวไป cell ที่เลือกทันที (ไม่หักแต้ม)
         var cur: Vector2i = piece_cells.get(active_piece, _pixel_to_cell(active_piece.global_position))
@@ -491,7 +541,7 @@ func _unhandled_input(e: InputEvent) -> void:
         board_nodes[cell.y][cell.x] = active_piece
         piece_cells[active_piece] = cell
         active_piece.global_position = _cell_center(cell)
-        _tick_counter_hack_all() 
+        _tick_counter_hack_all()
         queue_redraw()
         
         teleport_pending = false
@@ -515,7 +565,7 @@ func _unhandled_input(e: InputEvent) -> void:
             if path.is_empty():
                 return
 
-            await _move_piece_step_by_step(selected_piece, start_cell, path)
+            await _move_piece_step_by_step(selected_piece, path)
             var used: int = path.size()
             steps_left = max(steps_left - used, 0)
             _set_roll_label(steps_for_current_piece, steps_left)
@@ -530,8 +580,8 @@ func _unhandled_input(e: InputEvent) -> void:
             if steps_left > 0:
                 # ยังมีแต้มเหลือ → เดินต่อจากตำแหน่งปัจจุบัน
                 _compute_reachable(selected_cell, steps_left)
-                queue_redraw()  
-                _show_move_skip_bar()     
+                queue_redraw()
+                _show_move_skip_bar()
                 return
             else:
                 if attack_bar: attack_bar.visible = false
@@ -546,9 +596,9 @@ func _unhandled_input(e: InputEvent) -> void:
 
         
         if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
-                    if active_piece != null:
-                        add_money(active_piece, -100)
-                    return
+            if active_piece != null:
+                add_money(active_piece, -100)
+            return
                     
         if _is_targeting:
             if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
@@ -845,6 +895,43 @@ func _refresh_card_bar_ui() -> void:
         if not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
             end_turn_btn.pressed.connect(_on_end_turn_pressed)
 
+    for i in range(slot_buttons.size()):
+        var btn := slot_buttons[i]
+        if btn == null: continue
+
+        # ... โค้ดเดิมล้าง signal / ตั้ง disabled ...
+
+        if i < hand.size():
+            var info := _card_info(hand[i])
+
+            btn.disabled = false
+            btn.text = "%s\n(%s)" % [info.name, info.effect]  # ข้อความด้านหน้าเหมือนเดิม
+            btn.tooltip_text = info.desc
+            btn.pressed.connect(_on_card_slot_pressed.bind(i))
+            btn.add_theme_color_override("shadow_color", Color(0,0,0,0.7))
+            btn.add_theme_constant_override("shadow_offset_x", 1)
+            btn.add_theme_constant_override("shadow_offset_y", 1)
+            # ตอนสร้าง stylebox ของการ์ด (normal/hover/pressed/disabled)
+
+
+        if i < hand.size():
+            var info := _card_info(hand[i])
+
+            # ✅ ประกาศข้อความที่ต้องการโชว์บนไพ่
+            var final_text := "%s\n(%s)" % [info.name, info.effect]
+            _apply_card_skin(btn, info)
+            _apply_card_box_size(btn)              
+            _fit_button_text(btn, final_text)
+            
+
+            if selected_card_index == i:
+                btn.add_theme_color_override("font_color", Color.WHITE)
+            else:
+                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
+        else:
+            btn.disabled = true
+            btn.text = "-"
+            btn.tooltip_text = ""
 
 
 func _on_card_slot_pressed(i: int) -> void:
@@ -912,6 +999,12 @@ func apply_damage(p: Sprite2D, dmg: int) -> void:
         _check_win_condition()
 
 func _start_card_phase() -> void:
+        # ===== ใช้อาคารถ้าพึ่งเดินลงบนมันตานี้ =====
+    if active_piece and _pending_building_cell_by_piece.has(active_piece):
+        var cell := _pending_building_cell_by_piece[active_piece]
+        _pending_building_cell_by_piece.erase(active_piece)
+        _trigger_building_if_ready(active_piece, cell)
+
     is_card_phase = true
     selected_card_index = -1
     teleport_pending = false
@@ -1164,7 +1257,7 @@ func _kill_piece(p: Sprite2D) -> void:
     p.queue_free()
     queue_redraw()
     shield_by_piece.erase(p)         # NEW
-    update_money(p.name, 0)   
+    update_money(p.name, 0)
     _update_money_ui()
     frozen_turns.erase(p)
 
@@ -1356,7 +1449,7 @@ func _compute_reachable(start: Vector2i, steps: int) -> void:
         for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
             var v: Vector2i = u + d
             if not _in_bounds(v): continue
-            if _is_occupied(v) and v != start: continue
+            if not _is_walkable_cell(v) and v != start: continue 
             if v in dist: continue
             dist[v] = dist[u] + 1
             parent_map[v] = u
@@ -1376,29 +1469,49 @@ func _build_path(parents: Dictionary, dest: Vector2i) -> Array[Vector2i]:
 # ====================================================================
 # MOVE
 # ====================================================================
-func _move_piece_step_by_step(piece: Sprite2D, start_cell: Vector2i, path: Array[Vector2i]) -> void:
+# เดินตามเส้นทางที่คำนวณไว้ ทีละช่อง
+func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
     if path.is_empty():
         return
+
+    # กัน path ชนสิ่งกีดขวาง (เผื่อกรณีมีจุดใดพลาดการกรองมาก่อน)
+    var safe_path: Array[Vector2i] = []
+    for c in path:
+        if not _is_walkable_cell(c):
+            break
+        safe_path.append(c)
+    if safe_path.is_empty():
+        return
+
+    # จุดเริ่มต้น: ใช้ cell ปัจจุบันของหมากจาก piece_cells
+    var cur: Vector2i = piece_cells.get(piece, Vector2i(0, 0))
+    var orig_start: Vector2i = cur
+
     is_moving = true
-
-    var cur: Vector2i = start_cell
-    for step_cell in path:
+    for step_cell in safe_path:
         var dir: Vector2i = step_cell - cur
-        if "set_move_dir" in piece:
+        if piece.has_method("set_move_dir"):
             piece.set_move_dir(dir)
-        await _tween_move_one_cell(piece, cur, step_cell)  # <- ของคุณ
-
+        await _tween_move_one_cell(piece, cur, step_cell)  # tween ของคุณเดิม
         cur = step_cell
 
-    board_nodes[start_cell.y][start_cell.x] = null
-    board_nodes[cur.y][cur.x] = piece
+    # อัปเดตสถานะกระดาน
+    if board_nodes.size() > 0:
+        board_nodes[orig_start.y][orig_start.x] = null
+        board_nodes[cur.y][cur.x] = piece
+
     piece_cells[piece] = cur
-         # <- สำคัญมาก ใช้กับไฮไลท์เทิร์น
-
-    if "set_idle" in piece:
+    piece.set_meta("cell", cur)
+    if piece.has_method("set_idle"):
         piece.set_idle()
-
+    elif piece.has_method("set_move_dir"):
+        piece.set_move_dir(Vector2i.ZERO)  # เผื่อสคริปต์คุณใช้ทิศ 0 = idle
+    if building_at.has(cur) and int(building_cd.get(cur, 0)) <= 0:
+        _pending_building_cell_by_piece[piece] = cur
+    else:
+        _pending_building_cell_by_piece.erase(piece)
     is_moving = false
+
 
 func _tween_move_one_cell(piece: Sprite2D, from: Vector2i, to: Vector2i) -> void:
     var to_pos := _cell_center(to)
@@ -1448,8 +1561,10 @@ func _end_turn() -> void:
     if turn_idx == 0:
         turn_cycles_done += 1
         draw_card_for_all()
-        _tick_counter_hack_all() 
-        _decay_all_def_one_round()    
+        _tick_counter_hack_all()
+        _decay_all_def_one_round()
+        _decay_building_cd_one_round()
+        _tick_building_cooldowns() 
         _update_round_label()
         if turn_cycles_done >= MAX_TURNS:
             _end_game_by_turn_limit()
@@ -1486,7 +1601,9 @@ func _end_turn() -> void:
     _update_money_ui()
     queue_redraw()
     _check_win_condition()
-    
+
+
+
 func _end_game_by_turn_limit() -> void:
     # หาเงินสูงสุดจากผู้เล่นที่ยังอยู่บนบอร์ด
     var winner: Sprite2D = null
@@ -1572,7 +1689,7 @@ func draw_card_for_all() -> void:
     # ถ้าคุณมี UI แสดงมือของ “ผู้เล่นปัจจุบัน” ให้รีเฟรชด้วย
     _refresh_card_bar_ui()
 
-func _deal_initial_hands(card_count: int = 5) -> void:
+func _deal_initial_hands(card_count: int = 8) -> void:
     _ensure_hand_maps()
     if turn_order.is_empty():
         for child in $Pieces.get_children():
@@ -1708,6 +1825,8 @@ func _hide_roll_label() -> void:
 func _update_turn_ui() -> void:
     if turn_label:
         turn_label.text = "Turn: %s" % players[current_player]
+
+
 
 func _next_turn() -> void:
     # เคลียร์สถานะเลือก / จุดเดิน / แต้
@@ -1875,7 +1994,7 @@ func _setup_card_bar_slide() -> void:
 
     # ตั้งค่าเริ่มต้น (ซ่อนหลบลงไว้ก่อน)
     card_bar.position.y = _bar_hidden_y
-    card_bar.visible = true
+    card_bar.visible = false
     # ให้ซ้อนบน UI อื่น
     card_bar.z_index = 1000
 
@@ -1940,20 +2059,28 @@ func _on_card_hover_exit() -> void:
     pass
 
 func _card_info(card: Variant) -> Dictionary:
-    # คืนค่า {name, effect, desc} เสมอ
     if card == null:
-        return {"name":"(card)","effect":"","desc":""}
+        return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
+
     if card is CardData:
-        var c: CardData = card
-        return {"name": c.name, "effect": c.effect, "desc": c.desc}
+        var c := card as CardData
+        return {
+            "name": c.name,
+            "effect": c.effect,
+            "desc": c.desc,
+            "type": int(c.type)   # <<== สำคัญ
+        }
+
     if card is Dictionary:
         return {
-            "name": String(card.get("name","(card)")),
-            "effect": String(card.get("effect","")),
-            "desc": String(card.get("desc",""))
+            "name":  String(card.get("name","(card)")),
+            "effect":String(card.get("effect","")),
+            "desc":  String(card.get("desc","")),
+            "type":  int(card.get("type", CardType.MYSTERY))
         }
-    # fallback
-    return {"name":"(card)","effect":"","desc":""}
+
+    return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
+
 
 # helper: steal amount จาก target ให้ thief
 # - shield จะถูกลดก่อน (แต่ไม่ถูกย้าย)
@@ -1997,11 +2124,20 @@ func _all_empty_cells() -> Array[Vector2i]:
                 cells.append(c)
     return cells
 
+func _all_walkable_empty_cells() -> Array[Vector2i]:
+    var cells: Array[Vector2i] = []
+    for y in range(BOARD_SIZE):
+        for x in range(BOARD_SIZE):
+            var c := Vector2i(x, y)
+            if _is_walkable_cell(c) and not _is_occupied(c):
+                cells.append(c)
+    return cells
+
 # เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
 func _begin_teleport_targeting() -> void:
     # ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
     is_card_phase = false
-    if card_bar: 
+    if card_bar:
         card_bar.visible = false
 
     # ให้กรอบไฮไลต์อยู่รอบตัวผู้เล่นตอนนี้ก็ได้ (ไม่บังคับ)
@@ -2011,9 +2147,11 @@ func _begin_teleport_targeting() -> void:
         selected_cell = _pixel_to_cell(active_piece.global_position)
 
     # จุดขาว = ทุก cell ว่าง
-    reachable = _all_empty_cells()
+    reachable = _all_walkable_empty_cells()
     parent_map.clear()  # ไม่ใช้ BFS ในโหมดนี้
     queue_redraw()
+
+
 
 # หา enemy ที่ใกล้ที่สุดภายใน Manhattan range (exclude user)
 func _find_nearest_enemy_in_range(user: Sprite2D, max_range: int) -> Sprite2D:
@@ -2087,36 +2225,37 @@ func _exit_select_mode() -> void:
 func _steal_percent_respecting_shield(victim: Sprite2D, thief: Sprite2D, percent: float) -> int:
     if victim == null or thief == null: return 0
 
-    # ✅ ถ้ามี Counter Hack บนเหยื่อ → สะท้อนกลับใส่ผู้โจมตี
+    # Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
     if _has_counter_hack(victim):
         var attacker_money := int(money_by_piece.get(thief, 0))
         var want := int(floor(max(0.0, percent) * float(attacker_money)))
-        var got := _steal_from(thief, victim, want)  # เคารพโล่ของผู้โจมตีตามปกติ
+        var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
         _notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
         _clear_counter_hack(victim)
         ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-    [victim.name, thief.name, got])
-
-
+            [victim.name, thief.name, got])
         return got
 
     # ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
     var victim_money := int(money_by_piece.get(victim, 0))
     var want := int(floor(max(0.0, percent) * float(victim_money)))
     if want <= 0: return 0
-    ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันการโจมตีจาก %s", [victim.name, thief.name])
+
+    # *** อย่า log Reflective Surge ตรงนี้ ***
+    # ให้ _steal_from() จัดการเอง (ถ้ามี Reflective Surge จะคืน 0)
 
     return _steal_from(victim, thief, want)
 
 
 
+
 func _spawn_markers_for_pieces(pieces: Array) -> void:
     for piece in pieces:
-        if not piece is Node2D: 
+        if not piece is Node2D:
             continue
         var area := Area2D.new()
         area.input_pickable = true         # สำคัญ
-        area.z_index = 10000
+        area.z_index = 2000
         area.set_meta("target_piece_name", piece.name)
 
         var sprite := Sprite2D.new()
@@ -2172,11 +2311,26 @@ func _on_target_marker_input(viewport: Viewport, event: InputEvent, _shape_idx: 
         get_viewport().set_input_as_handled()
         
 func _flash_piece_node(p: Sprite2D) -> void:
-    if p:
-        var old_color := p.modulate
-        p.modulate = Color(1, 0.5, 0.5)   # เปลี่ยนเป็นสีแดงอ่อน
-        await get_tree().create_timer(0.18).timeout
-        p.modulate = old_color
+    if p == null: return
+
+    # ถ้ามี tween เก่าค้างอยู่ ให้ฆ่าทิ้งและรีเซ็ตสี
+    if _flash_tw_by_piece.has(p) and _flash_tw_by_piece[p] and _flash_tw_by_piece[p].is_running():
+        _flash_tw_by_piece[p].kill()
+    p.modulate = Color(1,1,1,1)  # reset ก่อนเริ่มใหม่
+
+    var t := create_tween()
+    _flash_tw_by_piece[p] = t
+    t.tween_property(p, "modulate", Color(1, 0.5, 0.5, 1), 0.08).set_trans(Tween.TRANS_SINE)
+    t.tween_property(p, "modulate", Color(1, 1, 1, 1), 0.16).set_trans(Tween.TRANS_SINE)
+
+    # กันหลุด: จบแล้วลบ mapping และรีเซ็ตสีอีกครั้งเพื่อความชัวร์
+    t.finished.connect(func():
+        if is_instance_valid(p):
+            p.modulate = Color(1,1,1,1)
+        if _flash_tw_by_piece.get(p) == t:
+            _flash_tw_by_piece.erase(p)
+    )
+
 
 
 func _resolve_card_steal_50_per(target_piece_name: String) -> void:
@@ -2329,7 +2483,6 @@ func draw_card_for_piece(piece: Sprite2D, count: int = 1) -> int:
         hand.append(card)
     hand_by_piece[piece] = hand
     _refresh_hand_ui_for(piece)
-    ChatBus.log_event("penalty", "ผู้เล่น %s ได้รับการ์ด \"System Failure\" (-200)", [piece.name])
     return drawn
 
 
@@ -2375,7 +2528,7 @@ func _goto_next_turn() -> void:
         current_round += 1
     if has_method("_update_round_label_ui"):
         _update_round_label_ui()
-        _on_new_round_started() 
+        _on_new_round_started()
 
 func _get_alive_turn_order() -> Array:
     var order: Array = []
@@ -2537,7 +2690,6 @@ func _on_card_drawn(piece: Sprite2D, card: Variant) -> bool:
     var norm := eff.strip_edges().to_lower().replace("_","").replace("-","")
     var name_key := String(info.name).strip_edges().to_lower().replace(" ","")
 
-    # ---- System Failure: apply & discard immediately ----
     var is_sysfail := (
         name_key.contains("systemfailure")
         or norm.contains("systemfailure")
@@ -2546,13 +2698,15 @@ func _on_card_drawn(piece: Sprite2D, card: Variant) -> bool:
         or norm == "lose200"
     )
     if is_sysfail:
-        add_money(piece, -SYSTEM_FAILURE_PENALTY)  # 200
+        add_money(piece, -SYSTEM_FAILURE_PENALTY)
         _notify_center("System Failure! %s เสียเงิน %d" % [piece.name, SYSTEM_FAILURE_PENALTY])
+        ChatBus.log_event("penalty", "System Failure! %s เสียเงิน %d", [piece.name, SYSTEM_FAILURE_PENALTY])
         _flash_piece_node(piece)
         _shake_camera_light()
-        return true   # ใช้แล้วทิ้ง ไม่ต้องใส่มือ
+        return true   # ← ใช้/ทิ้งทันที เฉพาะกรณีนี้เท่านั้น
 
-    return false
+    return false      # ← การ์ดปกติ: ไม่ได้ใช้ทันที ให้เข้ามือ
+
 
 func _norm(s: String) -> String:
     return s.strip_edges().to_lower().replace("_","").replace("-","").replace(" ","")
@@ -2586,9 +2740,27 @@ func _draw_random_card_excluding_system_failure() -> Resource:
         return null
     return pool[randi() % pool.size()]
 
+# ==== Auto-calibrate board geometry from Sprite2D ====
+var _board_px_size: Vector2 = Vector2.ZERO
+var _board_top_left: Vector2 = Vector2.ZERO  # local-space
+
+func _calc_board_geom() -> void:
+    # ใช้ได้กับ Sprite2D ที่ centered = true (ค่าเริ่มต้นของ Board)
+    if texture == null:
+        return
+    _board_px_size = texture.get_size() * scale      # ขนาดกระดานหลังสเกล (หน่วย: พิกเซล local)
+    _board_top_left = -_board_px_size * 0.5          # มุมซ้ายบนใน local space
+
+    # ปรับ CELL_SIZE ให้ตรงกับกระดานจริงอัตโนมัติ (กันคลาด)
+    var ideal := _board_px_size.x / float(BOARD_SIZE)
+    if abs(float(CELL_SIZE) - ideal) > 1.0:
+        CELL_SIZE = int(round(ideal))                 # อัปเดตให้พอดีช่อง
+
 func cell_to_pos(cell: Vector2i) -> Vector2:
-    # วางกึ่งกลางช่อง (ถ้า sprite คุณอิงมุมซ้ายบน ให้เอา +CELL_SIZE/2 ออก)
-    return Vector2(cell.x * CELL_SIZE + CELL_SIZE / 2, cell.y * CELL_SIZE + CELL_SIZE / 2)
+    var tl := _board_top_left   # จาก _calc_board_geom()
+    return tl + Vector2((cell.x + 0.5) * CELL_SIZE, (cell.y + 0.5) * CELL_SIZE)
+
+
 
 func in_bounds(c: Vector2i) -> bool:
     return c.x >= 0 and c.y >= 0 and c.x < BOARD_SIZE and c.y < BOARD_SIZE
@@ -2598,76 +2770,101 @@ func generate_obstacles() -> void:
     _clear_obstacles_visual()
 
     var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-
-    # ห้ามเกิดบนช่องเกิดผู้เล่น + ช่องที่มีหมากอยู่
     var forbidden := _collect_forbidden_cells()
 
-    var added := 0
-    var tried := 0
-    var max_try := 500
+    # รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
+    var candidates: Array[Vector2i] = []
+    for y in range(BOARD_SIZE):
+        for x in range(BOARD_SIZE):
+            var c := Vector2i(x, y)
+            if forbidden.has(c): continue
+            candidates.append(c)
+    candidates.shuffle()
 
-    # เลือก seed จำนวน OBSTACLE_SEEDS ก่อน
-    var seeds: Array[Vector2i] = []
+    var placed: Array[Vector2i] = []
+    var tries := 0
+    var max_try := 2000
 
-    while seeds.size() < OBSTACLE_SEEDS and tried < max_try:
-        tried += 1
-        var c := Vector2i(randi_range(0, BOARD_SIZE - 1), randi_range(0, BOARD_SIZE - 1))
-        if not in_bounds(c): 
-            continue
-        if forbidden.has(c): 
-            continue
-        if obstacle_cells.has(c): 
-            continue
+    for c in candidates:
+        if placed.size() >= total_target: break
+        if tries >= max_try: break
+        tries += 1
+
+        # บังคับให้กระจาย: ต้องห่างจากที่วางไว้แล้วอย่างน้อย OBSTACLE_MIN_DIST (Manhattan)
+        var ok := true
+        if OBSTACLE_MIN_DIST > 0:
+            for p in placed:
+                var d: int = abs(p.x - c.x) + abs(p.y - c.y)
+                if d < OBSTACLE_MIN_DIST:
+                    ok = false
+                    break
+        if not ok: continue
+
         obstacle_cells[c] = true
-        seeds.append(c)
-        added += 1
+        placed.append(c)
         _spawn_obstacle_sprite(c)
-
-    # ขยายจากแต่ละ seed แบบคลัสเตอร์
-    var frontier: Array[Vector2i] = seeds.duplicate()
-
-    while added < total_target and frontier.size() > 0 and tried < max_try:
-        tried += 1
-        # หยิบจุดสุ่มจากแนวหน้า
-        var base_idx := randi_range(0, frontier.size() - 1)
-        var base := frontier[base_idx]
-
-        # เพื่อนบ้าน 4 ทิศ (จะใช้ 8 ทิศก็ได้ถ้าต้องการคลัสเตอร์แน่นขึ้น)
-        var neighbors := [
-            Vector2i(base.x + 1, base.y),
-            Vector2i(base.x - 1, base.y),
-            Vector2i(base.x, base.y + 1),
-            Vector2i(base.x, base.y - 1)
-        ]
-
-        # สุ่มเรียงลำดับเล็กน้อย
-        neighbors.shuffle()
-
-        var grew := false
-        for n in neighbors:
-            if added >= total_target:
-                break
-            if not in_bounds(n): 
-                continue
-            if forbidden.has(n): 
-                continue
-            if obstacle_cells.has(n): 
-                continue
-
-            # ความน่าจะเป็นในการ “โต” ต่อเนื่อง เพื่อให้จับกลุ่ม
-            if randf() <= OBSTACLE_CLUSTER_CHANCE or randf() <= 0.18:
-                obstacle_cells[n] = true
-                added += 1
-                frontier.append(n)
-                _spawn_obstacle_sprite(n)
-                grew = true
-
-        # ถ้าจุดนี้ไม่โตต่อ ให้ดึงออกจากแนวหน้าเพื่อลดลูปค้าง
-        if not grew:
-            frontier.remove_at(base_idx)
+    # จบ — ไม่มี seed/frontier แล้ว
 
     # (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
     # ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
+
+# ====== รายการชนิดอาคารทั้งหมด (6 ชนิด) ======
+
+func _all_building_types() -> Array[int]:
+    return [
+        Building.BANK,
+        Building.DARKWEB,
+        Building.CYBER_STATION,
+        Building.LAB,
+        Building.DATA_HUB,
+        Building.ARTANIA,
+    ]
+
+# เลือกเฉพาะช่องว่างที่เดินได้จริง ๆ และยังไม่มีอาคาร
+func _empty_walkable_cells_for_building() -> Array[Vector2i]:
+    var out: Array[Vector2i] = []
+    for y in range(BOARD_SIZE):
+        for x in range(BOARD_SIZE):
+            var c := Vector2i(x, y)
+            if not _is_walkable_cell(c):      # กันสิ่งกีดขวาง
+                continue
+            if _is_occupied(c):               # กันตัวละครยืนอยู่
+                continue
+            if building_at.has(c):            # กันอาคารเดิม (กันถูกเรียกซ้ำ)
+                continue
+            out.append(c)
+    return out
+
+# เรียกจาก _ready() หรือหลัง generate_obstacles() เสร็จ
+func generate_buildings() -> void:
+    if buildings_root == null:
+        push_warning("buildings_root is null")
+        return
+
+    # 1) ล้างของเก่าเสมอ
+    for n in buildings_root.get_children():
+        n.queue_free()
+    building_at.clear()
+    building_cd.clear()
+    building_spr.clear()
+
+    # 2) เตรียมชนิดอาคาร (6 ชนิด) และช่องว่าง
+    var types: Array = _all_building_types()
+    types.shuffle()                               # สุ่มลำดับชนิด
+    var cells: Array[Vector2i] = _empty_walkable_cells_for_building()
+    cells.shuffle()
+
+    # 3) บังคับจำนวน = 6 (หรือเท่าที่มีช่องพอ)
+    var want: int = min(types.size(), cells.size())
+
+    # 4) จับคู่ 1:1 → ไม่ซ้ำชนิด + ไม่ซ้อนตำแหน่ง
+    for i in range(want):
+        _spawn_building(types[i], cells[i])
+
+    # Debug เช็ค
+    print("[BUILD] placed=", building_at.size(),
+          " unique types=", types.size(), " want=", want)
+
 
 func _collect_forbidden_cells() -> Dictionary:
     var f := {}
@@ -2680,7 +2877,7 @@ func _collect_forbidden_cells() -> Dictionary:
         Vector2i(BOARD_SIZE - 1, BOARD_SIZE - 1),
     ]
     for s in spawns:
-        f[s] = true
+        _mark_safe_zone(f, s, SPAWN_SAFE_RADIUS)
 
     # ตำแหน่งหมากปัจจุบัน (ถ้าคุณมี map piece_cells อยู่แล้ว ให้ใช้มัน)
     if typeof(pieces_root) != TYPE_NIL:
@@ -2691,21 +2888,476 @@ func _collect_forbidden_cells() -> Dictionary:
             f[c] = true
 
     return f
+    
+func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            # ใช้ระยะแมนฮัตตัน (จะได้เป็นรูปกากบาท/เพชร)
+            if abs(dx) + abs(dy) > r:
+                continue
+            var c := Vector2i(center.x + dx, center.y + dy)
+            if in_bounds(c):
+                f[c] = true
+
 
 func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-    if obstacle_texture == null:
-        return
     var s := Sprite2D.new()
     s.texture = obstacle_texture
     s.centered = true
-    s.position = cell_to_pos(cell)
-    # ถ้ารูปคุณพอดีช่องอยู่แล้ว ไม่ต้อง scale; ถ้าใหญ่/เล็กเกินไป ปรับที่นี่
-    # s.scale = Vector2(CELL_SIZE / obstacle_texture.get_width(), CELL_SIZE / obstacle_texture.get_height())
-    # เก็บ cell ไว้ที่ meta เผื่อดีบัก
-    s.set_meta("cell", cell)
+    s.global_position = _cell_center(cell)
     obstacles_root.add_child(s)
+
+
+
+
 
 func _clear_obstacles_visual() -> void:
     for c in obstacles_root.get_children():
         c.queue_free()
     obstacle_cells.clear()
+
+func _is_walkable_cell(c: Vector2i) -> bool:
+    if not in_bounds(c): return false
+    if obstacle_cells.has(c): return false
+    # ถ้ามีเช็คว่ามีหมากยืนอยู่ ให้คงไว้ที่นี่
+    # if _is_occupied_by_piece(c): return false
+    return true
+
+
+# หาเซลล์ที่เดินถึงได้จาก start ภายในจำนวนก้าว max_steps
+# - จะไม่รวม start เองในผลลัพธ์
+# - บันทึก parent_map สำหรับสร้าง path ย้อนกลับด้วย _build_path(parent_map, goal)
+func compute_reachable_from(start: Vector2i, max_steps: int) -> Array[Vector2i]:
+    var reachable: Array[Vector2i] = []
+    parent_map.clear()                       # ใช้ตัวแปร global ของคุณ (Dictionary)
+    var dist: Dictionary = {}                # key: Vector2i, val: int (ระยะทางจาก start)
+    var q: Array[Vector2i] = []
+
+    # เริ่มจากจุดตั้งต้น
+    dist[start] = 0
+    q.append(start)
+
+    while not q.is_empty():
+        var cur: Vector2i = q.pop_front()
+        var dcur: int = dist[cur]
+
+        # หมดก้าวแล้วก็ไม่ขยายต่อ
+        if dcur >= max_steps:
+            continue
+
+        for n in _get_neighbors(cur):        # _get_neighbors() ใช้ _is_walkable_cell() อยู่แล้ว
+            if dist.has(n):
+                continue
+            # จำกัดก้าว
+            dist[n] = dcur + 1
+            parent_map[n] = cur              # บันทึกพ่อของโหนดเพื่อสร้างเส้นทางทีหลัง
+            reachable.append(n)
+            q.append(n)
+
+    return reachable
+
+
+func _get_neighbors(c: Vector2i) -> Array[Vector2i]:
+    var out: Array[Vector2i] = []
+    var dirs: Array[Vector2i] = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+    for d in dirs:
+        var n: Vector2i = c + d
+        if _is_walkable_cell(n):
+            out.append(n)
+    return out
+
+
+func is_obstacle_cell(c: Vector2i) -> bool:
+    return obstacle_cells.has(c)
+    
+func _filter_out_obstacles(cells: Array[Vector2i]) -> Array[Vector2i]:
+    var out: Array[Vector2i] = []
+    for c in cells:
+        if not obstacle_cells.has(c):
+            out.append(c)
+    return out
+
+func _highlight_walkable(cells: Array[Vector2i]) -> void:
+    for c in cells:
+        if obstacle_cells.has(c):
+            continue
+
+func _on_board_clicked(world_pos: Vector2) -> void:
+    var target: Vector2i = _cell_from_global(world_pos)
+    if obstacle_cells.has(target):
+        return  # ไม่ต้องเดิน/ไม่ต้องไฮไลต์ต่อ
+    # ... โค้ดตรวจว่าอยู่ใน reachable set แล้วค่อยสั่งเดิน ...
+
+func _show_reachable_cells(selected_cell: Vector2i, steps: int) -> void:
+    var reachable: Array[Vector2i] = compute_reachable_from(selected_cell, steps)
+    reachable = _filter_out_obstacles(reachable)   # ✅ ทำตรงนี้
+    _highlight_walkable(reachable)                 # ฟังก์ชันวาดจุดเดิมของคุณ
+
+func _cell_from_global(world_pos: Vector2) -> Vector2i:
+    # หา offset มุมซ้ายบนของกระดาน
+    var tl := _board_top_left   # ถ้าคุณใช้ฟังก์ชัน _calc_board_geom() อยู่แล้ว
+    # คำนวณตำแหน่งในกริด
+    var local := world_pos - global_position - tl
+    var cx := int(floor(local.x / CELL_SIZE))
+    var cy := int(floor(local.y / CELL_SIZE))
+    return Vector2i(cx, cy)
+
+func _card_bg_for_type(t: int) -> Texture2D:
+    match t:
+        CardType.ATTACK:  return card_bg_attack
+        CardType.DEFENSE: return card_bg_defense
+        CardType.MYSTERY: return card_bg_mystery
+        _:                return card_bg_mystery
+
+func _stylebox_from_tex(tex: Texture2D) -> StyleBoxTexture:
+    var sb := StyleBoxTexture.new()
+    sb.texture = tex
+    # ถ้ารูปเป็น 9-patch ให้ตั้ง margin ต่อไปนี้ได้
+    sb.content_margin_left   = 8
+    sb.content_margin_right  = 8
+    sb.content_margin_top    = 6
+    sb.content_margin_bottom = 6
+    return sb
+
+func _apply_card_skin(btn: Button, info: Dictionary) -> void:
+    var tex := _card_bg_for_type(int(info.get("type", CardType.MYSTERY)))
+    if tex:
+        var sb := _stylebox_from_tex(tex)
+        # ใช้สไตล์เดียวกันในทุก state เพื่อให้ภาพคงที่
+        btn.add_theme_stylebox_override("normal",  sb)
+        btn.add_theme_stylebox_override("hover",   sb)
+        btn.add_theme_stylebox_override("pressed", sb)
+        btn.add_theme_stylebox_override("disabled", sb)
+
+    # อ่านง่ายบนพื้นหลัง: ทำตัวหนังสือขาว + มีเส้นขอบดำ
+    btn.add_theme_color_override("font_color", Color(1,1,1,1))
+    btn.add_theme_color_override("font_hover_color", Color(1,1,1,1))
+    btn.add_theme_color_override("font_pressed_color", Color(1,1,1,1))
+    btn.add_theme_color_override("font_focus_color", Color(1,1,1,1))
+    btn.add_theme_color_override("font_outline_color", Color(0,0,0,0.85))
+    btn.add_theme_constant_override("outline_size", 2)
+
+    # จัดกลาง + ระยะขอบในปุ่ม
+    btn.add_theme_constant_override("h_alignment", HORIZONTAL_ALIGNMENT_CENTER)
+    btn.add_theme_constant_override("v_alignment", VERTICAL_ALIGNMENT_CENTER)
+
+# ===== CONFIG บนสุดของ board.gd =====
+@export var CARD_SIZE := Vector2i(140, 260)   # กำหนดเองได้
+@export var CARD_TEXT_PADDING := Vector2(16, 16)
+
+# เรียกใน _refresh_card_bar_ui() ตอนวน set ปุ่มแต่ละช่อง
+func _tex_for_card(info: Dictionary) -> Texture2D:
+    var t := int(info.get("type", CardType.ATTACK))
+    match t:
+        CardType.ATTACK:  return card_tex_attack
+        CardType.DEFENSE: return card_tex_defense
+        CardType.MYSTERY: return card_tex_mystery
+        _:                return card_tex_attack
+
+func _apply_card_box_size(btn: Button) -> void:
+    btn.custom_minimum_size = CARD_SIZE
+    btn.size = CARD_SIZE
+    btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    btn.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
+
+func _fit_button_text(btn: Button, text: String) -> void:
+    var font := btn.get_theme_font("font")
+    if font == null: font = ThemeDB.fallback_font
+
+    var avail := btn.size - CARD_TEXT_PADDING * 2.0
+    var size := 16
+    while size > 10:
+        var m := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, avail.x, size)
+        if m.x <= avail.x and m.y <= avail.y:
+            break
+        size -= 1
+    btn.add_theme_font_size_override("font_size", size)
+    btn.text = text
+
+    # กันล้น (ถ้ายังล้นจริง ๆ)
+    btn.clip_text = true
+    btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+# ===== Board.gd (โซน CONFIG) =====
+@export var card_tex_attack: Texture2D
+@export var card_tex_defense: Texture2D
+@export var card_tex_mystery: Texture2D
+
+
+@onready var buildings_root: Node2D = $Buildings    # ทำ Node2D ชื่อ Buildings ใต้ Board ไว้ก่อน
+
+var building_at: Dictionary = {}        # Vector2i -> int (Building enum)
+var building_cd: Dictionary = {}        # Vector2i -> int (รอบที่เหลือ)
+var building_spr: Dictionary = {}       # Vector2i -> Sprite2D
+
+# ไว้จำว่า “ตานี้” ผู้เล่นเพิ่งเดิน “ลงบน” อาคารไหน (จะกดตอนเข้า Card Phase)
+var _pending_building_cell_by_piece: Dictionary[Sprite2D, Vector2i] = {}
+
+func _tex_for_building(t: int) -> Texture2D:
+    match t:
+        Building.BANK:           return tex_bank
+        Building.DARKWEB:        return tex_darkweb
+        Building.CYBER_STATION:  return tex_cyber_station
+        Building.LAB:            return tex_lab
+        Building.DATA_HUB:       return tex_data_hub
+        Building.ARTANIA:        return tex_artania
+        _:                       return tex_bank
+
+func _update_building_visual(cell: Vector2i) -> void:
+    var spr := building_spr.get(cell) as Sprite2D
+    if spr == null: return
+    var cd := _get_building_cd(cell)
+    var m: Color = spr.modulate
+    if cd > 0:
+        m.a = 0.40   # อาคารติดคูลดาวน์ → จางลง
+    else:
+        m.a = 1.0    # อาคารพร้อมใช้งาน → ชัดเต็ม
+    spr.modulate = m
+
+
+
+func _trigger_building_if_ready(p: Sprite2D, cell: Vector2i) -> void:
+    if p == null: return
+    if not building_at.has(cell): return
+    if int(building_cd.get(cell, 0)) > 0: return
+
+    var t := int(building_at[cell])
+    var cd := int(BUILDING_COOLDOWNS.get(t, 0))
+
+    # ให้ผลลัพธ์ตามชนิด
+    match t:
+        Building.BANK:
+            add_money(p, +300)
+            _notify_center("%s ได้รับ +300 จากเซิร์ฟเวอร์ธนาคาร" % p.name)
+            ChatBus.log_event("bonus", "%s รับเงิน +300 จาก Bank", [p.name])
+
+        Building.DARKWEB:
+            _give_darkweb_cards(p, 2)    # ✅ จั่วเฉพาะ p ผู้ที่เหยียบ
+            _set_building_cd(cell, 6)
+            _notify_center("%s ได้รับไพ่เพิ่ม +2 จากดาร์คเว็บ" % p.name)
+            ChatBus.log_event("bonus", "%s จั่วเพิ่ม +2 (Dark Web)", [p.name])
+
+        Building.CYBER_STATION:
+            add_shield(p, 200)
+            _notify_center("%s ได้โล่ +200 จากสถานีไซเบอร์" % p.name)
+            ChatBus.log_event("buff", "%s โล่ +200 (Cyber Station)", [p.name])
+
+        Building.LAB:
+            _give_specific_card(p, "root_access_heist", "Root Access Heist")
+            _notify_center("%s ได้ไพ่ Root Access Heist +1 (ห้องปฏิบัติการ)" % p.name)
+            ChatBus.log_event("bonus", "%s ได้การ์ด RAH +1 (Lab)", [p.name])
+
+        Building.DATA_HUB:
+            add_money(p, +150)
+            _notify_center("%s ได้รับ +150 จากจุดส่งข้อมูล" % p.name)
+            ChatBus.log_event("bonus", "%s รับเงิน +150 (Data Hub)", [p.name])
+
+        Building.ARTANIA:
+            add_money(p, +200)
+            add_shield(p, 50)
+            _notify_center("%s ได้ +200 เงิน และ +50 โล่ (บริษัทอาทาเนีย)" % p.name)
+            ChatBus.log_event("bonus", "%s +200 เงิน +50 โล่ (Artania)", [p.name])
+
+    # เข้าสู่คูลดาวน์
+    building_cd[cell] = cd
+    _update_building_visual(cell)
+    _update_money_ui()
+    if card_bar and active_piece == p:
+        _refresh_card_bar_ui()
+
+func _give_specific_card(p: Sprite2D, id_key: String, name_fallback: String) -> void:
+    if p == null: return
+    _ensure_hand_slot(p)
+
+    if hand_by_piece[p].size() >= MAX_HAND:
+        _notify_center("มือเต็ม (ไม่ได้รับการ์ดเพิ่ม)")
+        return
+
+    var c: Resource = null
+    if card_db:
+        # หาจาก id ก่อน (ถ้าการ์ดคุณมี field id)
+        for r in card_db.cards:
+            if r is CardData and String(r.id).strip_edges().to_lower() == id_key:
+                c = r; break
+        # ถ้าไม่เจอ id ลองด้วยชื่อ
+        if c == null:
+            var key := name_fallback.strip_edges().to_lower()
+            for r in card_db.cards:
+                if r is CardData and String(r.name).strip_edges().to_lower() == key:
+                    c = r; break
+    if c == null:
+        # fallback: ดึงการ์ดแบบ dictionary (ถ้าไม่มีใน DB จริง ๆ)
+        c = CardData.new()
+        c.name = name_fallback
+        c.effect = "steal_50"   # ให้พฤติกรรมใกล้เคียง RAH
+        c.desc = "จากอาคาร"
+
+    hand_by_piece[p].append(c)
+
+func _tick_building_cooldowns() -> void:
+    for cell in building_cd.keys():
+        var v := int(building_cd[cell])
+        if v > 0:
+            building_cd[cell] = v - 1
+            if building_cd[cell] <= 0:
+                building_cd[cell] = 0
+                _update_building_visual(cell)
+                # แจ้งเบา ๆ ว่ากลับมาใช้ได้ (ถ้าชอบ)
+                # _notify_right("อาคารพร้อมใช้งานอีกครั้งที่ %s" % str(cell))
+func generate_buildings_fair(want: int) -> void:
+    if buildings_root == null: return
+
+    for c in buildings_root.get_children():
+        c.queue_free()
+    building_at.clear()
+    building_cd.clear()
+    building_spr.clear()
+
+    var candidates : Array[Vector2i] = _all_walkable_empty_cells()
+    candidates = candidates.filter(func(c): return not building_at.has(c))
+    candidates.shuffle()
+
+    var base_types := [
+        Building.BANK,
+        Building.DARKWEB,
+        Building.CYBER_STATION,
+        Building.LAB,
+        Building.DATA_HUB,
+        Building.ARTANIA,
+    ]
+
+    var bag : Array = []
+    var placed := 0
+    var idx := 0
+
+    while placed < want and idx < candidates.size():
+        if bag.is_empty():
+            bag = base_types.duplicate()
+            bag.shuffle()
+        var t = bag.pop_back()
+        var cell := candidates[idx]
+        _spawn_building(t, cell)
+        placed += 1
+        idx += 1
+
+func _spawn_building(t: int, cell: Vector2i) -> void:
+    # กันซ้อน cell (เผื่อถูกเรียกซ้ำ)
+    if building_at.has(cell):
+        return
+
+    var spr := Sprite2D.new()
+    spr.texture = _tex_for_building(t)  # เขียนฟังก์ชัน map ชนิด -> texture แล้ว
+    spr.centered = true
+    spr.global_position = _cell_center(cell)
+    buildings_root.add_child(spr)
+
+    building_at[cell] = t
+    building_cd[cell] = 0
+    building_spr[cell] = spr
+
+
+func generate_buildings_unique_once() -> void:
+    if buildings_root == null:
+        return
+
+    # เคลียร์ของเก่า
+    for c in buildings_root.get_children():
+        c.queue_free()
+    building_at.clear()
+    building_cd.clear()
+    building_spr.clear()
+
+    # ชนิดอาคารครบชุด (อย่างละ 1)
+    var types := [
+        Building.BANK,
+        Building.DARKWEB,
+        Building.CYBER_STATION,
+        Building.LAB,
+        Building.DATA_HUB,
+        Building.ARTANIA,
+    ]
+    types.shuffle()
+
+    # หาเซลล์ว่าง/เดินได้ ไม่ชนสิ่งกีดขวาง/ตัวละคร/อาคารเดิม
+    var candidates : Array[Vector2i] = _all_walkable_empty_cells()
+    # ตัดเซลล์ที่มีอาคารอยู่แล้ว (กันพลาด)
+    candidates = candidates.filter(func(c): return not building_at.has(c))
+    candidates.shuffle()
+
+    if candidates.size() < types.size():
+        push_warning("มีเซลล์ว่างไม่พอสำหรับอาคารทั้งหมด")
+        return
+
+    # จับคู่ 1:1 → ไม่มีซ้ำชนิดและไม่ซ้อนตำแหน่ง
+    for i in types.size():
+        var cell := candidates[i]
+        _spawn_building(types[i], cell)
+
+# แนะนำวางใกล้ ๆ ฟังก์ชันไพ่ (แถว ๆ draw_card_for_piece)
+func _give_darkweb_cards(p: Sprite2D, count: int) -> void:
+    if p == null: return
+    _ensure_hand_slot(p)
+
+    var hand: Array = hand_by_piece.get(p, [])
+    var target: int = min(count, MAX_HAND - hand.size())
+    if target <= 0:
+        return
+
+    var drawn := 0
+    var safety := 30                      # กันลูปค้าง
+
+    while drawn < target and safety > 0:
+        safety -= 1
+
+        # ใช้อันที่ “ไม่น่าจะได้ null” ถ้ามี
+        var card: Resource = _draw_random_card_excluding_system_failure()
+        if card == null:
+            continue                      # ข้ามของเสีย
+
+        # ถ้าเป็น on-draw (เช่น System Failure) แล้วถูกใช้ทันที ให้ข้ามไม่ใส่มือ
+        if _on_card_drawn(p, card):
+            continue
+
+        # ✅ ปลอดภัยก่อน push: ต้องเป็น CardData หรือ Dictionary ที่มีชื่อ
+        if not (card is CardData):
+
+            continue
+
+        hand.append(card)
+        drawn += 1
+    hand_by_piece[p] = hand
+
+    # อัปเดต UI เฉพาะถ้าเป็นผู้เล่นที่กำลังแสดงมืออยู่
+    if p == active_piece:
+        _refresh_card_bar_ui()
+
+func _sanitize_hand(p: Sprite2D) -> void:
+    if p == null: return
+    var hand: Array = hand_by_piece.get(p, [])
+    var clean: Array = []
+    for c in hand:
+        if c is CardData:
+            clean.append(c)
+        elif c is Dictionary and c.has("name"):
+            clean.append(c)
+    hand_by_piece[p] = clean
+
+
+func _set_building_cd(cell: Vector2i, turns: int) -> void:
+    building_cd[cell] = max(0, turns)
+    _update_building_visual(cell)   # ทำให้ไอคอนจาง/กลับมาปกติ
+
+func _get_building_cd(cell: Vector2i) -> int:
+    return int(building_cd.get(cell, 0))
+
+func _decay_building_cd_one_round() -> void:
+    var to_update: Array[Vector2i] = []
+    for c in building_cd.keys():
+        var left := int(building_cd[c]) - 1
+        if left <= 0:
+            building_cd.erase(c)
+        else:
+            building_cd[c] = left
+        to_update.append(c)
+    for c in to_update:
+        _update_building_visual(c)

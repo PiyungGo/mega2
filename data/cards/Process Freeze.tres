@@ -1,5 +1,6 @@
-[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://g2lsgmxprfel"]
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://g2lsgmxprfel"]
 
+[ext_resource type="Texture2D" uid="uid://bmlv4jo82ntg2" path="res://Asset_UWU/S__5169167_0.png" id="1_br64x"]
 [ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_hsk5r"]
 
 [resource]
@@ -8,5 +9,6 @@ id = "pfreeze_"
 name = "Process Freeze"
 type = 2
 desc = "(จะหยุดเดิน 1 ตา กับผู้เล่นที่เลือกใช้) \\_(x.x)_/ #Freezeeeezzz..#"
-effect = "pfreeze_"
+effect = "สั่งหยุดเดิน 1 ตา"
+icon = ExtResource("1_br64x")
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

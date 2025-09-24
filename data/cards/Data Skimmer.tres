@@ -8,5 +8,5 @@ id = "steal_100"
 name = "Data Skimmer"
 type = 0
 desc = "(ขโมยเงิน 100) ดักจับข้อมูลธุรกรรมจากธนาคารนคร"
-effect = "steal_100"
+effect = "ขโมยเงิน 100"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

@@ -7,7 +7,7 @@ extends Sprite2D
 @export var BOARD_SIZE: int = 8
 @export var CELL_SIZE: int = 800
 @export var MAX_STEPS: int = 6                 # เดินได้กี่ช่อง (แมนฮัตตัน)
-
+const NUM_SLOTS := 8
 # แหล่งไฟล์ (ถ้าใช้ texture_holder เป็น Sprite2D root)
 @export var texture_holder: PackedScene         # res://texture_holder.tscn
 @export var tex_good:  Texture2D                # ใส่รูปตัว 1
@@ -45,6 +45,10 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @export var piece_script: Script                # res://Piece.gd (ไม่บังคับ)
 @export var piece_scale_factor: float = 1.0     # ขยาย/ย่อหมากเพิ่มเติม
 @export var piece_y_offset: float = -2.0        # ยกขึ้นกันเท้าตกขอบ
+# ==== CARD BACKGROUNDS (ใส่ในส่วน CONFIG) ====
+@export var card_bg_attack:  Texture2D    # รูปพื้นหลังไพ่โจมตี
+@export var card_bg_defense: Texture2D    # รูปพื้นหลังไพ่ป้องกัน
+@export var card_bg_mystery: Texture2D    # รูปพื้นหลังไพ่อื่น ๆ / เสริม
 
 @export var hp_start: int = 1000
 @export var WinPanelScene: PackedScene
@@ -58,6 +62,33 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @onready var turn_label: Label = topbar.get_node_or_null("TurnLabel") if topbar else null
 @onready var settings_btn: Button = topbar.get_node_or_null("SettingsBtn") if topbar else null
 @onready var quit_btn_top: Button = topbar.get_node_or_null("QuitBtn") if topbar else null
+
+# ===== BUILDING CONFIG =====
+enum Building { BANK, DARKWEB, CYBER_STATION, LAB, DATA_HUB, ARTANIA }
+
+@export var BUILDING_MIN := 6
+@export var BUILDING_MAX := 6      # จำนวนสุ่มต่อแผนที่ (ปรับได้)
+@export var BUILDING_COOLDOWNS := { # คูลดาวน์เป็น “รอบ” (ครบทุกคน 1 รอบ = -1)
+	Building.BANK:            6,
+	Building.DARKWEB:         6,
+	Building.CYBER_STATION:   5,
+	Building.LAB:             4,
+	Building.DATA_HUB:        3,
+	Building.ARTANIA:         4,
+}
+
+# เท็กซ์เจอร์ของอาคาร (กิน 1 tile ทั้งหมด)
+@export var tex_bank:           Texture2D     # เซิร์ฟเวอร์ธนาคาร
+@export var tex_darkweb:        Texture2D     # ดาร์คเว็บ
+@export var tex_cyber_station:  Texture2D     # สถานีไซเบอร์
+@export var tex_lab:            Texture2D     # ห้องปฏิบัติการ
+@export var tex_data_hub:       Texture2D     # จุดส่งข้อมูล
+@export var tex_artania:        Texture2D     # บริษัทอาทาเนีย
+
+# ไว้ใกล้ๆ โซน CONFIG
+@export var buildings_root_path: NodePath        # ตั้งค่าใน Inspector ได้
+@export var SPAWN_SAFE_RADIUS:int = 1   # 1 = ห้ามติดขอบรอบช่องเกิด (แมนฮัตตัน)
+
 
 # ป๊อปอัปยืนยันออกเกม (ถ้าไม่มีในฉาก ให้เราสร้างเองได้)
 @export var quit_confirm_path: NodePath
@@ -74,15 +105,15 @@ var all_def_turns: Dictionary[Sprite2D, int] = {}   # piece -> เทิร์�
 @export var obstacle_texture: Texture2D              # ← ลากรูปสิ่งกีดขวางมาใส่ใน Inspector
 
 @onready var obstacles_root: Node2D = $Obstacles
-
 # เก็บ cell ที่เป็นสิ่งกีดขวาง (ใช้เป็น set)
 var obstacle_cells := {}   # Dictionary acting as set: key=Vector2i, value=true
 
-
+@export var OBSTACLE_MIN_DIST:int = 2 # ระยะห่างขั้นต่ำระหว่างสิ่งกีดขวาง (0 = ปิด)
 
 @onready var hover_zone: Control = $CanvasLayer/CardBar/HoverZone
 const PROCESS_FREEZE_TURNS := 4   # ← ถ้าอยากให้ 1 เทิร์น เปลี่ยนเป็น 1
 const SYSTEM_FAILURE_PENALTY := 200
+const HIT_FLASH_SHADER_PATH := "res://__hit_flash_shader.gdshader"
 var frozen_turns: Dictionary = {}  # Sprite2D -> เทิร์นที่เหลือ
 var _bar_shown_y: float
 var _bar_hidden_y: float
@@ -173,225 +204,15 @@ var teleport_pending: bool = false    # โหมดเลือกจุดว�
 @onready var slots_container: HBoxContainer = card_bar.get_node_or_null("Slots") if card_bar else null
 @export var card_db_path: String = "res://data/cards/card_database.tres"
 @export var card_db: CardDatabase
+var _flash_tw_by_piece: Dictionary[Sprite2D, Tween] = {}
 var slot_buttons: Array[Button] = []
 
-func _cache_slot_buttons() -> void:
-	slot_buttons.clear()
-	if slots_container:
-		for i in range(1, 6):
-			var b := slots_container.get_node_or_null("Slot%d" % i) as Button
-			if b:
-				slot_buttons.append(b)
-
-
-<<<<<<< HEAD
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-	# host id = 1 เสมอ
-	var host_id := 1
-	var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-	var sides := ["Good", "Call", "Hacker", "Police"]
-
-	players_peer_map.clear()
-
-	# โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-	if sides.size() > 0:
-		players_peer_map[sides[0]] = host_id
-
-	var idx := 1
-	for p in peers:
-		if idx >= sides.size():
-			break
-		players_peer_map[sides[idx]] = int(p)
-		idx += 1
-
-	# ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-	while idx < sides.size():
-		players_peer_map[sides[idx]] = 0
-		idx += 1
-
-func _broadcast_alive_set() -> void:
-	# ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-	pass
-
-
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-	# host id = 1 เสมอ
-	var host_id := 1
-	var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-	var sides := ["Good", "Call", "Hacker", "Police"]
-
-	players_peer_map.clear()
-
-	# โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-	if sides.size() > 0:
-		players_peer_map[sides[0]] = host_id
-
-	var idx := 1
-	for p in peers:
-		if idx >= sides.size():
-			break
-		players_peer_map[sides[idx]] = int(p)
-		idx += 1
-
-	# ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-	while idx < sides.size():
-		players_peer_map[sides[idx]] = 0
-		idx += 1
-
-func _broadcast_alive_set() -> void:
-	# ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-	pass
-
-
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-	# host id = 1 เสมอ
-	var host_id := 1
-	var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-	var sides := ["Good", "Call", "Hacker", "Police"]
-
-	players_peer_map.clear()
-
-	# โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-	if sides.size() > 0:
-		players_peer_map[sides[0]] = host_id
-
-	var idx := 1
-	for p in peers:
-		if idx >= sides.size():
-			break
-		players_peer_map[sides[idx]] = int(p)
-		idx += 1
-
-	# ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-	while idx < sides.size():
-		players_peer_map[sides[idx]] = 0
-		idx += 1
-
-func _broadcast_alive_set() -> void:
-	# ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-	pass
-
-
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-    # host id = 1 เสมอ
-    var host_id := 1
-    var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-    var sides := ["Good", "Call", "Hacker", "Police"]
-
-    players_peer_map.clear()
-
-    # โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-    if sides.size() > 0:
-        players_peer_map[sides[0]] = host_id
-
-    var idx := 1
-    for p in peers:
-        if idx >= sides.size():
-            break
-        players_peer_map[sides[idx]] = int(p)
-        idx += 1
-
-    # ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-    while idx < sides.size():
-        players_peer_map[sides[idx]] = 0
-        idx += 1
-
-func _broadcast_alive_set() -> void:
-    # ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-    pass
-
-
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-    # host id = 1 เสมอ
-    var host_id := 1
-    var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-    var sides := ["Good", "Call", "Hacker", "Police"]
-
-    players_peer_map.clear()
-
-    # โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-    if sides.size() > 0:
-        players_peer_map[sides[0]] = host_id
-
-    var idx := 1
-    for p in peers:
-        if idx >= sides.size():
-            break
-        players_peer_map[sides[idx]] = int(p)
-        idx += 1
-
-    # ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-    while idx < sides.size():
-        players_peer_map[sides[idx]] = 0
-        idx += 1
-
-func _broadcast_alive_set() -> void:
-    # ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-    pass
-
-
-# ====== 1) จับคู่ผู้เล่นเข้ากับฝ่าย ======
-func _assign_players_to_sides() -> void:
-    # host id = 1 เสมอ
-    var host_id := 1
-    var peers: Array = multiplayer.get_peers()  # รายชื่อ client peer ids
-    var sides := ["Good", "Call", "Hacker", "Police"]
-
-    players_peer_map.clear()
-
-    # โฮสต์ถือ Good เป็นค่าเริ่ม (ปรับได้)
-    if sides.size() > 0:
-        players_peer_map[sides[0]] = host_id
-
-    var idx := 1
-    for p in peers:
-        if idx >= sides.size():
-            break
-        players_peer_map[sides[idx]] = int(p)
-        idx += 1
-
-    # ฝ่ายที่เหลือไม่มีผู้เล่น → 0
-    while idx < sides.size():
-        players_peer_map[sides[idx]] = 0
-        idx += 1
-
-func _broadcast_alive_set() -> void:
-    # ตอนนี้ทำเป็น no-op กัน error ไปก่อน
-    pass
-
+# board.gd (ตอนบนไฟล์)
+var NET_ENABLED := false
+var IS_HOST := false
+var MY_PIECE := ""
 
 func _ready() -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-func _ready() -> void:
->>>>>>> parent of b073401 (sdsdsd)
-	randomize()
-	_calc_board_offset()
-	_place_four_corners_by_name()
-	_snap_and_fit_existing_pieces()
-	_rebuild_nodes_map()
-	_setup_money()
-	_setup_owners_by_name()
-	_update_money_ui()
-	_update_turn_ui()
-	_start_turns()
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-	add_to_group("BoardRoot")
 	_setup_card_bar()
 	if texture:
 		var tex_size = texture.get_size() * scale
@@ -415,53 +236,6 @@ func _ready() -> void:
 	_update_money_ui()
 	_update_turn_ui()
 	_start_turns()
-	
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    add_to_group("BoardRoot")
-    _setup_card_bar()
-    if texture:
-        var tex_size = texture.get_size() * scale
-        CELL_SIZE = int(tex_size.x / BOARD_SIZE)
-        print("CALIBRATED CELL_SIZE = ", CELL_SIZE)
-    randomize()
-    _calc_board_geom()
-    _calc_board_offset()
-    _place_four_corners_by_name()
-    _snap_and_fit_existing_pieces()
-    _rebuild_nodes_map()
-    generate_obstacles()
-    if buildings_root == null:
-        buildings_root = Node2D.new()
-        buildings_root.name = "Buildings"
-        add_child(buildings_root)   # ติดไว้ใต้ Board
-    # จากนั้นค่อยสุ่มอาคาร
-    generate_buildings()
-    _setup_money()
-    _setup_owners_by_name()
-    _update_money_ui()
-    _update_turn_ui()
-    _start_turns()
-    
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	# ---- โหลด Card DB ให้เรียบร้อยก่อนแจกไพ่ ----
 	card_db = load(card_db_path)
@@ -470,44 +244,6 @@ func _ready() -> void:
 	else:
 		push_warning("card_db is not set; no cards loaded")
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	# แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-	_deal_initial_hands(5)
-=======
-	# แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-	# _ready()
-	_deal_initial_hands(INITIAL_HAND)
-=======
-    # แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-    # _ready()
-    _deal_initial_hands(INITIAL_HAND)
->>>>>>> Stashed changes
-=======
-	# แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-	_deal_initial_hands(5)
->>>>>>> parent of b073401 (sdsdsd)
-
-	await get_tree().process_frame
-	_setup_card_bar_slide()
-
-
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ----- WinPanel (เดิม) -----
-	if win_panel == null and WinPanelScene:
-		win_panel = WinPanelScene.instantiate()
-		win_panel.name = "WinPanel"
-		$CanvasLayer.add_child(win_panel)
-<<<<<<< HEAD
-=======
 	# แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
 	# _ready()
 	_deal_initial_hands(INITIAL_HAND)
@@ -515,141 +251,13 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	_setup_card_bar_slide()
->>>>>>> Stashed changes
-=======
-	# แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-	# _ready()
-	_deal_initial_hands(INITIAL_HAND)
-=======
-    # แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-    # _ready()
-    _deal_initial_hands(INITIAL_HAND)
->>>>>>> Stashed changes
 
 
-    await get_tree().process_frame
-    _setup_card_bar_slide()
-
-
-<<<<<<< Updated upstream
 	# ----- WinPanel (เดิม) -----
 	if win_panel == null and WinPanelScene:
 		win_panel = WinPanelScene.instantiate()
 		win_panel.name = "WinPanel"
 		$CanvasLayer.add_child(win_panel)
->>>>>>> Stashed changes
-=======
-=======
-    # แจกไพ่เริ่มต้น **หลังจาก** โหลดแล้ว
-    # _ready()
-    _deal_initial_hands(INITIAL_HAND)
-
-
-    await get_tree().process_frame
-    _setup_card_bar_slide()
-
-
->>>>>>> Stashed changes
-    # ----- WinPanel (เดิม) -----
-    if win_panel == null and WinPanelScene:
-        win_panel = WinPanelScene.instantiate()
-        win_panel.name = "WinPanel"
-        $CanvasLayer.add_child(win_panel)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-    if win_panel:
-        win_panel.visible = false
-        var quit_btn := win_panel.get_node_or_null("QuitButton") as Button
-        if quit_btn and not quit_btn.is_connected("pressed", Callable(self, "_on_quit_pressed")):
-            quit_btn.pressed.connect(_on_quit_pressed)
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
-	# ----- ปุ่ม/แถบอื่น ๆ (ย้ายออกมาจาก else) -----
-	if attack_bar:
-		attack_bar.visible = false
-	if skip_btn and not skip_btn.is_connected("pressed", Callable(self, "_on_skip_pressed")):
-		skip_btn.pressed.connect(_on_skip_pressed)
-=======
-=======
->>>>>>> Stashed changes
-    # ----- ปุ่ม/แถบอื่น ๆ (ย้ายออกมาจาก else) -----
-    if attack_bar:
-        attack_bar.visible = false
-    if skip_btn and not skip_btn.is_connected("pressed", Callable(self, "_on_skip_pressed")):
-        skip_btn.pressed.connect(_on_skip_pressed)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-    if settings_btn and not settings_btn.is_connected("pressed", Callable(self, "_on_settings_pressed")):
-        settings_btn.pressed.connect(_on_settings_pressed)
-    if quit_btn_top and not quit_btn_top.is_connected("pressed", Callable(self, "_on_quit_top_pressed")):
-        quit_btn_top.pressed.connect(_on_quit_top_pressed)
-
-    if quit_confirm and not quit_confirm.is_connected("confirmed", Callable(self, "_on_quit_confirmed")):
-        quit_confirm.confirmed.connect(_on_quit_confirmed)
-
-    _update_round_label()
-    _update_side_turn_label()
-    _update_topbar_ui()
-
-    # ----- โปรไฟล์ (ของเดิม) -----
-    _setup_profiles([
-        {"name": "Good",   "job": "คนดี",        "money": 1000, "icon": tex_good},
-        {"name": "Call",   "job": "คอลเซนเตอร์","money": 1000, "icon": tex_call},
-        {"name": "Hacker", "job": "แฮกเกอร์",   "money": 1000, "icon": tex_hack},
-        {"name": "Police", "job": "ตำรวจ",       "money": 1000, "icon": tex_pol},
-    ])
-
-    if not target_markers_root.get_parent():
-        target_markers_root.name = "TargetMarkers"
-        add_child(target_markers_root)
-        target_markers_root.z_index = 9999  # ให้อยู่บนสุด
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-	# ----- WinPanel (เดิม) -----
-	if win_panel == null and WinPanelScene:
-		win_panel = WinPanelScene.instantiate()
-		win_panel.name = "WinPanel"
-		$CanvasLayer.add_child(win_panel)
-=======
-	# สร้างเท็กซ์เจอร์สี่เหลี่ยมแดงโปร่งแสง 64x64
-	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-	img.fill(Color(1, 0, 0, 0.35))
-	_marker_tex = ImageTexture.create_from_image(img)
->>>>>>> Stashed changes
-=======
-    # ----- WinPanel (เดิม) -----
-    if win_panel == null and WinPanelScene:
-        win_panel = WinPanelScene.instantiate()
-        win_panel.name = "WinPanel"
-        $CanvasLayer.add_child(win_panel)
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-    # สร้างเท็กซ์เจอร์สี่เหลี่ยมแดงโปร่งแสง 64x64
-    var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-    img.fill(Color(1, 0, 0, 0.35))
-    _marker_tex = ImageTexture.create_from_image(img)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	if win_panel:
 		win_panel.visible = false
@@ -688,166 +296,88 @@ func _ready() -> void:
 		add_child(target_markers_root)
 		target_markers_root.z_index = 9999  # ให้อยู่บนสุด
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 	# สร้างเท็กซ์เจอร์สี่เหลี่ยมแดงโปร่งแสง 64x64
 	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	img.fill(Color(1, 0, 0, 0.35))
 	_marker_tex = ImageTexture.create_from_image(img)
-<<<<<<< HEAD
-=======
-    # สร้างเท็กซ์เจอร์สี่เหลี่ยมแดงโปร่งแสง 64x64
-    var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-    img.fill(Color(1, 0, 0, 0.35))
-    _marker_tex = ImageTexture.create_from_image(img)
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-=======
 func _apply_network_assignments() -> void:
-    # ฆ่าตัวที่ไม่มีคนคุมตั้งแต่เริ่ม
-    var assign := Net.get_assign_map()     # peer_id(string) -> piece(String)
-    var alive := []
-    for k in assign.keys():
-        alive.append(assign[k])
+	# ฆ่าตัวที่ไม่มีคนคุมตั้งแต่เริ่ม
+	var assign := Net.get_assign_map()     # peer_id(string) -> piece(String)
+	var alive := []
+	for k in assign.keys():
+		alive.append(assign[k])
 
-    var all := ["Good","Call","Hacker","Police"]
-    for p in all:
-        if not alive.has(p):
-            _kill_piece_immediately(p)     # ← ใช้ฟังก์ชันลัดฆ่าที่คุณมีอยู่ (เช่น _kill_piece)
+	var all := ["Good","Call","Hacker","Police"]
+	for p in all:
+		if not alive.has(p):
+			_kill_piece_immediately(p)     # ← ใช้ฟังก์ชันลัดฆ่าที่คุณมีอยู่ (เช่น _kill_piece)
 
-    # จำกัดสิทธิ์ควบคุม: ไม่ใช่ชิ้นของเรา ⇒ ปิดปุ่มกด/การ์ดทั้งหมดไว้ก่อน
-    if MY_PIECE != "":
-        _lock_all_controls_except_mine()
+	# จำกัดสิทธิ์ควบคุม: ไม่ใช่ชิ้นของเรา ⇒ ปิดปุ่มกด/การ์ดทั้งหมดไว้ก่อน
+	if MY_PIECE != "":
+		_lock_all_controls_except_mine()
 
 func _kill_piece_immediately(piece_name: String) -> void:
-    # TODO: เรียกฟังก์ชันฆ่าที่คุณมีอยู่ (อัปเดตเงิน/เอาออกจากบอร์ด/อัปเดต UI)
-    # ตัวอย่าง: _remove_piece_from_board(piece_name) หรือ _kill_piece(piece_name)
-    pass
+	# TODO: เรียกฟังก์ชันฆ่าที่คุณมีอยู่ (อัปเดตเงิน/เอาออกจากบอร์ด/อัปเดต UI)
+	# ตัวอย่าง: _remove_piece_from_board(piece_name) หรือ _kill_piece(piece_name)
+	pass
 
 func _lock_all_controls_except_mine() -> void:
-    # ปิด UI ที่ลูกค้าไม่ควรแตะเมื่อไม่ใช่เทิร์น/ไม่ใช่ตัวเรา
-    # ตัวอย่าง (แก้ path ให้ตรงโปรเจกต์):
-    # $CanvasLayer/AttackBar.disabled = true
-    # $CanvasLayer/DiceUI.hide()
-    # และเวลาเป็นเทิร์นของ MY_PIECE ค่อยเปิด (ดูขั้น 5)
-    pass
-
-var current_turn_peer_id: int = 1
-var _turn_order: Array[int] = []
-var _turn_index: int = 0
-
-func _rebuild_turn_order() -> void:
-    _turn_order.clear()
-    # เรียงตามฝั่ง Good -> Call -> Hacker -> Police
-    var sides := ["Good", "Call", "Hacker", "Police"]
-    for s in sides:
-        var pid: int = players_peer_map.get(s, 0)
-        if pid != 0:
-            if not _turn_order.has(pid):
-                _turn_order.append(pid)
-    # กันล่ม ถ้าไม่มีใครเลย ให้ host เล่นไปก่อน
-    if _turn_order.is_empty():
-        _turn_order = [1]
-    _turn_index = 0
-    current_turn_peer_id = _turn_order[_turn_index]
-    # แจ้งทุกเครื่องให้ sync ตาเริ่มต้น
-    rpc("_set_turn_client", current_turn_peer_id)
-
-func _calc_next_turn() -> int:
-    if _turn_order.is_empty():
-        _rebuild_turn_order()
-    _turn_index = (_turn_index + 1) % _turn_order.size()
-    return _turn_order[_turn_index]
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-var current_turn_peer_id: int = 1
-var _turn_order: Array[int] = []
-var _turn_index: int = 0
-
-func _rebuild_turn_order() -> void:
-	_turn_order.clear()
-	# เรียงตามฝั่ง Good -> Call -> Hacker -> Police
-	var sides := ["Good", "Call", "Hacker", "Police"]
-	for s in sides:
-		var pid: int = players_peer_map.get(s, 0)
-		if pid != 0:
-			if not _turn_order.has(pid):
-				_turn_order.append(pid)
-	# กันล่ม ถ้าไม่มีใครเลย ให้ host เล่นไปก่อน
-	if _turn_order.is_empty():
-		_turn_order = [1]
-	_turn_index = 0
-	current_turn_peer_id = _turn_order[_turn_index]
-	# แจ้งทุกเครื่องให้ sync ตาเริ่มต้น
-	rpc("_set_turn_client", current_turn_peer_id)
-
-func _calc_next_turn() -> int:
-	if _turn_order.is_empty():
-		_rebuild_turn_order()
-	_turn_index = (_turn_index + 1) % _turn_order.size()
-	return _turn_order[_turn_index]
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+	# ปิด UI ที่ลูกค้าไม่ควรแตะเมื่อไม่ใช่เทิร์น/ไม่ใช่ตัวเรา
+	# ตัวอย่าง (แก้ path ให้ตรงโปรเจกต์):
+	# $CanvasLayer/AttackBar.disabled = true
+	# $CanvasLayer/DiceUI.hide()
+	# และเวลาเป็นเทิร์นของ MY_PIECE ค่อยเปิด (ดูขั้น 5)
+	pass
 
 
 func _cache_slot_buttons() -> void:
-    slot_buttons.clear()
-    if slots_container == null:
-        return
+	slot_buttons.clear()
+	if slots_container == null:
+		return
 
-    # รวบรวมปุ่มจาก Slot1..Slot8 (ปรับจำนวนได้)
-    for i in range(1, 9):
-        var slot := slots_container.get_node_or_null("Slot%d" % i)
-        if slot == null:
-            continue
-        # รองรับทั้งกรณี Slot เป็นปุ่มเอง หรือมีลูกชื่อ Button
-        var btn := slot as Button
-        if btn == null:
-            btn = slot.get_node_or_null("Button") as Button
-        if btn != null:
-            slot_buttons.append(btn)
+	# รวบรวมปุ่มจาก Slot1..Slot8 (ปรับจำนวนได้)
+	for i in range(1, 9):
+		var slot := slots_container.get_node_or_null("Slot%d" % i)
+		if slot == null:
+			continue
+		# รองรับทั้งกรณี Slot เป็นปุ่มเอง หรือมีลูกชื่อ Button
+		var btn := slot as Button
+		if btn == null:
+			btn = slot.get_node_or_null("Button") as Button
+		if btn != null:
+			slot_buttons.append(btn)
 
 # === ตัวอย่างจุดต่อ RPC ===
 @rpc("any_peer","reliable")
 func request_roll() -> void:
-    if not IS_HOST: return
-    var sender := multiplayer.get_remote_sender_id()
-    # ตรวจสอบว่า sender คุมชิ้นที่เป็นเทิร์นอยู่จริงไหม
-    # ถ้าถูกต้อง ให้รันโค้ดทอยเต๋าเดิมของคุณ แล้ว rpc ผลลัพธ์ให้ทุกเครื่อง
-    # rpc("ev_dice_value", value)
+	if not IS_HOST: return
+	var sender := multiplayer.get_remote_sender_id()
+	# ตรวจสอบว่า sender คุมชิ้นที่เป็นเทิร์นอยู่จริงไหม
+	# ถ้าถูกต้อง ให้รันโค้ดทอยเต๋าเดิมของคุณ แล้ว rpc ผลลัพธ์ให้ทุกเครื่อง
+	# rpc("ev_dice_value", value)
 
 @rpc("authority","reliable")
 func ev_dice_value(value: int) -> void:
-    # ทุกเครื่องอัปเดต UI แสดงค่าทอย
-    # ถ้าเครื่องไหนไม่ใช่เทิร์น ก็ยังกดอะไรไม่ได้อยู่ดี
-    pass
+	# ทุกเครื่องอัปเดต UI แสดงค่าทอย
+	# ถ้าเครื่องไหนไม่ใช่เทิร์น ก็ยังกดอะไรไม่ได้อยู่ดี
+	pass
 
 
 func _setup_card_bar() -> void:
-    _cache_slot_buttons()
-    for i in slot_buttons.size():
-        var btn: Button = slot_buttons[i]
-        var cb := Callable(self, "_on_card_slot_pressed").bind(i)
-        # กันการเชื่อมซ้ำแบบ idempotent
-        if btn.pressed.is_connected(cb):
-            btn.pressed.disconnect(cb)
-        btn.pressed.connect(cb)
+	_cache_slot_buttons()
+	for i in slot_buttons.size():
+		var btn: Button = slot_buttons[i]
+		var cb := Callable(self, "_on_card_slot_pressed").bind(i)
+		# กันการเชื่อมซ้ำแบบ idempotent
+		if btn.pressed.is_connected(cb):
+			btn.pressed.disconnect(cb)
+		btn.pressed.connect(cb)
 
 @onready var grid_origin: Node2D = $GridOrigin  # ถ้าไม่มี node นี้ จะ fallback วิธี B
 
 
 
->>>>>>> Stashed changes
-=======
-
->>>>>>> parent of b073401 (sdsdsd)
 @onready var player_profiles := $CanvasLayer/PlayerProfiles
 var profile_cards := {}   # name -> card (Control)
 # เก็บ reference ของโปรไฟล์แต่ละอัน
@@ -866,246 +396,6 @@ func _find_profile_pic(card: Node) -> TextureRect:
 
 # ดึง Texture จากตัวหมากจริงให้ได้แน่ ๆ
 
-<<<<<<< HEAD
-# สมมุติว่าคุณมีรายชื่อผู้เล่น 4 ฝ่าย: Good, Call, Hacker, Police
-var players_peer_map: Dictionary = {}   # เช่น { "Good": 1, "Call": 2, "Hacker": 3, "Police": 0 }
-var owner_by_piece: Dictionary = {}   # { NodePath or piece_name : int peer_id }
-
-func assign_piece_authority() -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if not multiplayer.is_server():
-		return
-	owner_by_piece.clear()
-	for piece in $Pieces.get_children():
-	# เดิม: var peer_id := resolve_owner_peer_for_piece(piece)
-		var peer_id := resolve_owner_peer_for_piece(piece.name)
-		if peer_id == 0:
-			peer_id = 1  # ถ้าไม่มีเจ้าของ ให้เซิร์ฟเวอร์ถือครองไว้ (หรือจะปล่อย 0 ก็ได้)
-		piece.set_multiplayer_authority(peer_id)
-		owner_by_piece[piece.get_path()] = peer_id
-
-func resolve_owner_peer_for_piece(piece_name: String) -> int:
-	# TODO: ใส่กติกาจริงของคุณ เช่น map Good→peer A, Call→peer B …
-	# ถ้าไม่รู้ ให้คืน 0 (ไม่มีเจ้าของ)
-	return players_peer_map.get(piece_name, 0)
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if not multiplayer.is_server():
-        return
-    owner_by_piece.clear()
-    for piece in $Pieces.get_children():
-    # เดิม: var peer_id := resolve_owner_peer_for_piece(piece)
-        var peer_id := resolve_owner_peer_for_piece(piece.name)
-        if peer_id == 0:
-            peer_id = 1  # ถ้าไม่มีเจ้าของ ให้เซิร์ฟเวอร์ถือครองไว้ (หรือจะปล่อย 0 ก็ได้)
-        piece.set_multiplayer_authority(peer_id)
-        owner_by_piece[piece.get_path()] = peer_id
-
-func resolve_owner_peer_for_piece(piece_name: String) -> int:
-    # TODO: ใส่กติกาจริงของคุณ เช่น map Good→peer A, Call→peer B …
-    # ถ้าไม่รู้ ให้คืน 0 (ไม่มีเจ้าของ)
-    return players_peer_map.get(piece_name, 0)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-
-
-func _on_board_click(piece: Node, target_cell: Vector2i) -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if not piece.is_multiplayer_authority():
-		return
-	# แล้วค่อยส่งคำขอไปเซิร์ฟเวอร์ด้วย RPC แบบ server-authoritative
-	request_move_rpc(piece.get_instance_id(), target_cell)
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if not piece.is_multiplayer_authority():
-        return
-    # แล้วค่อยส่งคำขอไปเซิร์ฟเวอร์ด้วย RPC แบบ server-authoritative
-    request_move_rpc(piece.get_instance_id(), target_cell)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-# Client → Server
-@rpc("any_peer", "reliable")
-func request_move_rpc(piece_id: int, target_cell: Vector2i) -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if not multiplayer.is_server():
-		return
-	var piece := instance_from_id(piece_id)
-	if piece == null:
-		return
-	# ตรวจสอบว่า peer ผู้ส่งเป็นเจ้าของ
-	if not _is_sender_author_of(piece):
-		return
-	# ตรวจสอบเงื่อนไขเกม: เป็นเทิร์นของเขาไหม, เดินได้ไหม, ช่องว่างไหม ฯลฯ
-	if not _validate_move(piece, target_cell):
-		return
-	# ทำการย้ายจริงบนเซิร์ฟเวอร์
-	_apply_move_server(piece, target_cell)
-	# Broadcast state ให้ทุกเครื่อง (รวมโฮสต์เอง)
-	rpc("_apply_move_client", piece.get_path(), target_cell)
-
-func _is_sender_author_of(piece: Node) -> bool:
-	var sender := multiplayer.get_remote_sender_id()
-	return piece.get_multiplayer_authority() == sender
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if not multiplayer.is_server():
-        return
-    var piece := instance_from_id(piece_id)
-    if piece == null:
-        return
-    # ตรวจสอบว่า peer ผู้ส่งเป็นเจ้าของ
-    if not _is_sender_author_of(piece):
-        return
-    # ตรวจสอบเงื่อนไขเกม: เป็นเทิร์นของเขาไหม, เดินได้ไหม, ช่องว่างไหม ฯลฯ
-    if not _validate_move(piece, target_cell):
-        return
-    # ทำการย้ายจริงบนเซิร์ฟเวอร์
-    _apply_move_server(piece, target_cell)
-    # Broadcast state ให้ทุกเครื่อง (รวมโฮสต์เอง)
-    rpc("_apply_move_client", piece.get_path(), target_cell)
-
-func _is_sender_author_of(piece: Node) -> bool:
-    var sender := multiplayer.get_remote_sender_id()
-    return piece.get_multiplayer_authority() == sender
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-# Server → ทุกคน (รวม call_local)
-@rpc("authority", "reliable", "call_local")
-func _apply_move_client(piece_path: NodePath, target_cell: Vector2i) -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	var piece := get_node(piece_path)
-	if piece:
-		# เรียกฟังก์ชันเดิมที่ "วาด"/animate การย้าย แต่ห้ามทำเกมลอจิกซ้ำ
-		_move_piece_visual_only(piece, target_cell)
-
-func _next_turn_server() -> void:
-	if not multiplayer.is_server():
-		return
-	current_turn_peer_id = _calc_next_turn()
-	rpc("_set_turn_client", current_turn_peer_id)
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    var piece := get_node(piece_path)
-    if piece:
-        # เรียกฟังก์ชันเดิมที่ "วาด"/animate การย้าย แต่ห้ามทำเกมลอจิกซ้ำ
-        _move_piece_visual_only(piece, target_cell)
-
-func _next_turn_server() -> void:
-    if not multiplayer.is_server():
-        return
-    current_turn_peer_id = _calc_next_turn()
-    rpc("_set_turn_client", current_turn_peer_id)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-
-# --- SERVER-SIDE MOVE CHECKS & APPLY ---
-
-func _validate_move(piece: Node, target_cell: Vector2i) -> bool:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	# TODO: ตรงนี้ไว้ตรวจจริง เช่น:
-	# 1) เป็นตาของเจ้าของชิ้นนี้หรือไม่
-	# 2) ช่อง target อยู่ในกระดานและเดินได้
-	# 3) อยู่ในระยะแต้มเดินที่เหลือ ฯลฯ
-	# ตอนนี้ให้ผ่านไปก่อนเพื่อทดสอบ flow รวม (กันเกมค้าง)
-	return true
-
-
-func _apply_move_server(piece: Node, target_cell: Vector2i) -> void:
-	# TODO: อัปเดต state ฝั่งเซิร์ฟเวอร์จริง ๆ ที่นี่
-	# - อัปเดตตำแหน่งกริดของ piece
-	# - อัปเดต mapping piece_cells/board_nodes/เงิน/เทิร์น ฯลฯ
-	# ตอนนี้ทำแบบมินิมอล ไม่เปลี่ยน state เพื่อให้ flow RPC ทำงานก่อน
-	pass
-
-@rpc("authority", "reliable", "call_local")
-func _set_turn_client(peer_id: int) -> void:
-	current_turn_peer_id = peer_id
-	_update_turn_labels_safely()
-
-func can_control_piece(piece: Node) -> bool:
-	return piece.is_multiplayer_authority() and multiplayer.get_unique_id() == current_turn_peer_id
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    # TODO: ตรงนี้ไว้ตรวจจริง เช่น:
-    # 1) เป็นตาของเจ้าของชิ้นนี้หรือไม่
-    # 2) ช่อง target อยู่ในกระดานและเดินได้
-    # 3) อยู่ในระยะแต้มเดินที่เหลือ ฯลฯ
-    # ตอนนี้ให้ผ่านไปก่อนเพื่อทดสอบ flow รวม (กันเกมค้าง)
-    return true
-
-
-func _apply_move_server(piece: Node, target_cell: Vector2i) -> void:
-    # TODO: อัปเดต state ฝั่งเซิร์ฟเวอร์จริง ๆ ที่นี่
-    # - อัปเดตตำแหน่งกริดของ piece
-    # - อัปเดต mapping piece_cells/board_nodes/เงิน/เทิร์น ฯลฯ
-    # ตอนนี้ทำแบบมินิมอล ไม่เปลี่ยน state เพื่อให้ flow RPC ทำงานก่อน
-    pass
-
-@rpc("authority", "reliable", "call_local")
-func _set_turn_client(peer_id: int) -> void:
-    current_turn_peer_id = peer_id
-    _update_turn_labels_safely()
-
-func can_control_piece(piece: Node) -> bool:
-    return piece.is_multiplayer_authority() and multiplayer.get_unique_id() == current_turn_peer_id
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 # ตั้งค่าการ์ดโปรไฟล์ และดึงรูปจากตัวหมากถ้าไม่มี icon ใน data
@@ -1136,56 +426,11 @@ func _setup_profiles(players: Array[Dictionary]) -> void:
 		profile_cards[data["name"]] = card
 
 func add_shield(p: Sprite2D, delta: int) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	if p == null: return
-	var cur: int = int(shield_by_piece.get(p, 0))
-	shield_by_piece[p] = max(0, cur + delta)
-	_update_money_ui()
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	if p == null: return
 	var cur: int = int(shield_by_piece.get(p, 0))
 	shield_by_piece[p] = max(0, cur + delta)
 	_update_money_ui()
 	SFX.play_world("shield_up", pieces)  # piece = Sprite2D/Node2D ของตัวนั้น
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if p == null: return
-    var cur: int = int(shield_by_piece.get(p, 0))
-    shield_by_piece[p] = max(0, cur + delta)
-    _update_money_ui()
-    SFX.play_world("shield_up", pieces)  # piece = Sprite2D/Node2D ของตัวนั้น
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 func set_shield(p: Sprite2D, value: int) -> void:
 	if p == null: return
@@ -1241,90 +486,6 @@ func _update_side_turn_label() -> void:
 
 
 func _active_player_index() -> int:
-<<<<<<< HEAD
-    if active_piece == null: return 0
-    match active_piece.name:
-        "Good": return 0
-        "Call": return 1
-        "Hacker": return 2
-        "Police": return 3
-        _:
-            return 0
-
-func _start_server_side_rules() -> void:
-    if not multiplayer.is_server():
-        return
-    _assign_players_to_sides()
-    assign_piece_authority()
-    _kick_unassigned_pieces()
-    _broadcast_alive_set()
-    _rebuild_turn_order() 
-    print("Server-side rules applied")
-
-func _kick_unassigned_pieces() -> void:
-    for piece in $Pieces.get_children():
-        var owner := piece.get_multiplayer_authority()
-        if owner == 1 and not _is_npc_allowed(piece):
-            # ไม่มีเจ้าของและไม่ใช่ NPC ที่ตั้งใจให้มี → ลบ/ฆ่า
-            _remove_piece_server(piece)
-
-func _is_npc_allowed(piece: Node) -> bool:
-    # ถ้าคุณมี NPC จริง ๆ คงต้องมีแท็ก/ชื่อบอกไว้
-    return piece.name.begins_with("NPC_")
-
-func _remove_piece_server(piece: Node) -> void:
-    var path := piece.get_path()
-    piece.queue_free()
-    # ให้ทุกคนลบเหมือนกัน
-    rpc("_remove_piece_client", path)
-
-@rpc("authority", "reliable", "call_local")
-func _remove_piece_client(path: NodePath) -> void:
-    var n := get_node_or_null(path)
-    if n:
-        n.queue_free()
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-func _start_server_side_rules() -> void:
-	if not multiplayer.is_server():
-		return
-	_assign_players_to_sides()
-	assign_piece_authority()
-	_kick_unassigned_pieces()
-	_broadcast_alive_set()
-	_rebuild_turn_order() 
-	print("Server-side rules applied")
-
-func _kick_unassigned_pieces() -> void:
-	for piece in $Pieces.get_children():
-		var owner := piece.get_multiplayer_authority()
-		if owner == 1 and not _is_npc_allowed(piece):
-			# ไม่มีเจ้าของและไม่ใช่ NPC ที่ตั้งใจให้มี → ลบ/ฆ่า
-			_remove_piece_server(piece)
-
-func _is_npc_allowed(piece: Node) -> bool:
-	# ถ้าคุณมี NPC จริง ๆ คงต้องมีแท็ก/ชื่อบอกไว้
-	return piece.name.begins_with("NPC_")
-
-func _remove_piece_server(piece: Node) -> void:
-	var path := piece.get_path()
-	piece.queue_free()
-	# ให้ทุกคนลบเหมือนกัน
-	rpc("_remove_piece_client", path)
-
-@rpc("authority", "reliable", "call_local")
-func _remove_piece_client(path: NodePath) -> void:
-	var n := get_node_or_null(path)
-	if n:
-		n.queue_free()
-
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
 	if active_piece == null: return 0
 	match active_piece.name:
 		"Good": return 0
@@ -1333,7 +494,6 @@ func _remove_piece_client(path: NodePath) -> void:
 		"Police": return 3
 		_:
 			return 0
->>>>>>> parent of b073401 (sdsdsd)
 
 
 func _start_turns() -> void:
@@ -1344,33 +504,6 @@ func _start_turns() -> void:
 	var hack  : Sprite2D = p.get_node("Hacker")
 	var police: Sprite2D = p.get_node("Police")
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	turn_order = [good, call, hack, police]
-	turn_order.shuffle()
-	_update_side_turn_label()
-	turn_idx = 0
-	active_piece = turn_order[turn_idx]
-	current_player = _active_player_index()
-	_update_turn_ui()             # เดิมที่ใช้ข้อความ Turn:
-	_update_money_ui()  
-	# กันพลาด
-	if active_piece == null:
-		push_error("active_piece is null (turn_order empty?)")
-		return
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	turn_order = [good, call, hack, police]
 	turn_order.shuffle()
 	_update_side_turn_label()
@@ -1383,39 +516,6 @@ func _start_turns() -> void:
 	if active_piece == null:
 		push_error("active_piece is null (turn_order empty?)")
 		return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    turn_order = [good, call, hack, police]
-    turn_order.shuffle()
-    _update_side_turn_label()
-    turn_idx = 0
-    active_piece = turn_order[turn_idx]
-    current_player = _active_player_index()
-    _update_turn_ui()             # เดิมที่ใช้ข้อความ Turn:
-    _update_money_ui()
-    # กันพลาด
-    if active_piece == null:
-        push_error("active_piece is null (turn_order empty?)")
-        return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	selected_piece = null
 	selected_cell  = Vector2i(-1, -1)
@@ -1424,7 +524,7 @@ func _start_turns() -> void:
 	print("TURN ORDER =", turn_order.map(func(n): return n.name))
 	print("ACTIVE     =", active_piece.name)
 
-@export var INITIAL_HAND: int = 3
+@export var INITIAL_HAND: int = 5
 
 
 func _fit_sprite_to_cell(s: Sprite2D, padding: float = 0.10) -> void:
@@ -1477,29 +577,6 @@ func _cell_center(c: Vector2i) -> Vector2:
 
 
 func _draw() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	_draw_selection()
-	_draw_reachable_dots()
-	
-	# ไฮไลท์ชิ้นที่เลือก
-	if selected_cell != Vector2i(-1, -1):
-		var rect := _cell_rect(selected_cell)
-		draw_rect(rect, TURN_COLORS[current_player], true)
-		draw_rect(rect, Color(0, 0, 0, 0.55), false, 2)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	_draw_selection()
 	_draw_reachable_dots()
 	_highlight_walkable(reachable)
@@ -1509,36 +586,6 @@ func _draw() -> void:
 		var rect := _cell_rect(selected_cell)
 		draw_rect(rect, TURN_COLORS[current_player], true)
 		draw_rect(rect, Color(0, 0, 0, 0.55), false, 2)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    _draw_selection()
-    _draw_reachable_dots()
-    _highlight_walkable(reachable)
-    
-    # ไฮไลท์ชิ้นที่เลือก
-    if selected_cell != Vector2i(-1, -1):
-        var rect := _cell_rect(selected_cell)
-        draw_rect(rect, TURN_COLORS[current_player], true)
-        draw_rect(rect, Color(0, 0, 0, 0.55), false, 2)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	if piece_cells.has(active_piece):
 		selected_cell = piece_cells[active_piece]
@@ -1553,37 +600,6 @@ func _draw() -> void:
 
 	
 func _unhandled_input(e: InputEvent) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# --- โหมดวาร์ปจาก Trace Jump ---
-	if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		var cell := _pixel_to_cell(get_global_mouse_position())
-		if not _in_bounds(cell): return
-		if _is_occupied(cell): return
-		if active_piece == null: return
-
-		# ย้ายตัวไป cell ที่เลือกทันที (ไม่หักแต้ม)
-		var cur: Vector2i = piece_cells.get(active_piece, _pixel_to_cell(active_piece.global_position))
-		board_nodes[cur.y][cur.x] = null
-		board_nodes[cell.y][cell.x] = active_piece
-		piece_cells[active_piece] = cell
-		active_piece.global_position = _cell_center(cell)
-		_tick_counter_hack_all() 
-		queue_redraw()
-		
-		teleport_pending = false
-		_end_card_phase()
-		_end_turn()
-		return
-<<<<<<< HEAD
-=======
 	# --- โหมดวาร์ปจาก Trace Jump ---
 	if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 		# ใน _unhandled_input() บล็อก teleport_pending
@@ -1607,18 +623,6 @@ func _unhandled_input(e: InputEvent) -> void:
 		_end_card_phase()
 		_end_turn()
 		return
->>>>>>> Stashed changes
-=======
-    # --- โหมดวาร์ปจาก Trace Jump ---
-    if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-        # ใน _unhandled_input() บล็อก teleport_pending
-        var cell := _pixel_to_cell(get_global_mouse_position())
-        if not _in_bounds(cell): return
-        if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
-        if _is_occupied(cell): return
-        if active_piece == null: return
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	if is_game_over:
 		return
@@ -1636,28 +640,6 @@ func _unhandled_input(e: InputEvent) -> void:
 			if path.is_empty():
 				return
 
-<<<<<<< HEAD
-        if not _in_bounds(cell):
-            return
-
-        # คลิกปลายทางที่ไปได้ → เดิน
-        if selected_piece != null and steps_left > 0 and _has_cell(reachable, cell):
-            var start_cell: Vector2i = piece_cells.get(selected_piece, selected_cell)
-            var path: Array[Vector2i] = _build_path(parent_map, cell)
-            if path.is_empty():
-                return
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-			await _move_piece_step_by_step(selected_piece, start_cell, path)
-			var used: int = path.size()
-			steps_left = max(steps_left - used, 0)
-			_set_roll_label(steps_for_current_piece, steps_left)
-
-<<<<<<< HEAD
-=======
 			await _move_piece_step_by_step(selected_piece, path)
 			var used: int = path.size()
 			steps_left = max(steps_left - used, 0)
@@ -1666,187 +648,13 @@ func _unhandled_input(e: InputEvent) -> void:
 			var piece_node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % selected_piece)
 			if piece_node:
 				SFX.play_world("move_step", piece_node)
->>>>>>> Stashed changes
-
-=======
-	# --- โหมดวาร์ปจาก Trace Jump ---
-	if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		# ใน _unhandled_input() บล็อก teleport_pending
-		var cell := _pixel_to_cell(get_global_mouse_position())
-		if not _in_bounds(cell): return
-		if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
-		if _is_occupied(cell): return
-		if active_piece == null: return
-=======
-    # --- โหมดวาร์ปจาก Trace Jump ---
-    if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-        # ใน _unhandled_input() บล็อก teleport_pending
-        var cell := _pixel_to_cell(get_global_mouse_position())
-        if not _in_bounds(cell): return
-        if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
-        if _is_occupied(cell): return
-        if active_piece == null: return
->>>>>>> Stashed changes
-
-
-        # ย้ายตัวไป cell ที่เลือกทันที (ไม่หักแต้ม)
-        var cur: Vector2i = piece_cells.get(active_piece, _pixel_to_cell(active_piece.global_position))
-        board_nodes[cur.y][cur.x] = null
-        board_nodes[cell.y][cell.x] = active_piece
-        piece_cells[active_piece] = cell
-        active_piece.global_position = _cell_center(cell)
-        _tick_counter_hack_all()
-        queue_redraw()
-        
-        teleport_pending = false
-        _end_card_phase()
-        _end_turn()
-        return
-
-    if is_game_over:
-        return
-    if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-        var gpos: Vector2 = get_global_mouse_position()
-        var cell: Vector2i = _pixel_to_cell(gpos)   # ← ประกาศที่นี่ก่อนใช้ทุกที่
-
-        if not _in_bounds(cell):
-            return
-
-        # คลิกปลายทางที่ไปได้ → เดิน
-        if selected_piece != null and steps_left > 0 and _has_cell(reachable, cell):
-            var start_cell: Vector2i = piece_cells.get(selected_piece, selected_cell)
-            var path: Array[Vector2i] = _build_path(parent_map, cell)
-            if path.is_empty():
-                return
-
-            await _move_piece_step_by_step(selected_piece, path)
-            var used: int = path.size()
-            steps_left = max(steps_left - used, 0)
-            _set_roll_label(steps_for_current_piece, steps_left)
-            
-            var piece_node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % selected_piece)
-            if piece_node:
-                SFX.play_world("move_step", piece_node)
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-			# sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
-			selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
-=======
-            # sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
-            selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
->>>>>>> Stashed changes
-=======
-            await _move_piece_step_by_step(selected_piece, path)
-            var used: int = path.size()
-            steps_left = max(steps_left - used, 0)
-            _set_roll_label(steps_for_current_piece, steps_left)
-            
-            var piece_node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % selected_piece)
-            if piece_node:
-                SFX.play_world("move_step", piece_node)
-
-            # sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
-            selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
->>>>>>> Stashed changes
-=======
 
 			# sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
 			selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
->>>>>>> parent of b073401 (sdsdsd)
 
 
 			#
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-			if steps_left > 0:
-				# ยังมีแต้มเหลือ → เดินต่อจากตำแหน่งปัจจุบัน
-				_compute_reachable(selected_cell, steps_left)
-				queue_redraw()  
-				_show_move_skip_bar()     
-				return
-			else:
-				if attack_bar: attack_bar.visible = false
-				_start_card_phase()
-				return
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
-	# --- โหมดวาร์ปจาก Trace Jump ---
-	if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		# ใน _unhandled_input() บล็อก teleport_pending
-		var cell := _pixel_to_cell(get_global_mouse_position())
-		if not _in_bounds(cell): return
-		if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
-		if _is_occupied(cell): return
-		if active_piece == null: return
-=======
-    # --- โหมดวาร์ปจาก Trace Jump ---
-    if teleport_pending and e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-        # ใน _unhandled_input() บล็อก teleport_pending
-        var cell := _pixel_to_cell(get_global_mouse_position())
-        if not _in_bounds(cell): return
-        if not _is_walkable_cell(cell): return        # << กันวาร์ปลงสิ่งกีดขวาง
-        if _is_occupied(cell): return
-        if active_piece == null: return
->>>>>>> Stashed changes
-
-
-        # ย้ายตัวไป cell ที่เลือกทันที (ไม่หักแต้ม)
-        var cur: Vector2i = piece_cells.get(active_piece, _pixel_to_cell(active_piece.global_position))
-        board_nodes[cur.y][cur.x] = null
-        board_nodes[cell.y][cell.x] = active_piece
-        piece_cells[active_piece] = cell
-        active_piece.global_position = _cell_center(cell)
-        _tick_counter_hack_all()
-        queue_redraw()
-        
-        teleport_pending = false
-        _end_card_phase()
-        _end_turn()
-        return
-
-    if is_game_over:
-        return
-    if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-        var gpos: Vector2 = get_global_mouse_position()
-        var cell: Vector2i = _pixel_to_cell(gpos)   # ← ประกาศที่นี่ก่อนใช้ทุกที่
-
-        if not _in_bounds(cell):
-            return
-
-        # คลิกปลายทางที่ไปได้ → เดิน
-        if selected_piece != null and steps_left > 0 and _has_cell(reachable, cell):
-            var start_cell: Vector2i = piece_cells.get(selected_piece, selected_cell)
-            var path: Array[Vector2i] = _build_path(parent_map, cell)
-            if path.is_empty():
-                return
-
-            await _move_piece_step_by_step(selected_piece, path)
-            var used: int = path.size()
-            steps_left = max(steps_left - used, 0)
-            _set_roll_label(steps_for_current_piece, steps_left)
-            
-            var piece_node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % selected_piece)
-            if piece_node:
-                SFX.play_world("move_step", piece_node)
-
-            # sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
-            selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
-
-
-            #
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
 			if steps_left > 0:
 				# ยังมีแต้มเหลือ → เดินต่อจากตำแหน่งปัจจุบัน
 				_compute_reachable(selected_cell, steps_left)
@@ -1857,37 +665,6 @@ func _unhandled_input(e: InputEvent) -> void:
 				if attack_bar: attack_bar.visible = false
 				_start_card_phase()
 				return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-            if steps_left > 0:
-                # ยังมีแต้มเหลือ → เดินต่อจากตำแหน่งปัจจุบัน
-                _compute_reachable(selected_cell, steps_left)
-                queue_redraw()
-                _show_move_skip_bar()
-                return
-            else:
-                if attack_bar: attack_bar.visible = false
-                _start_card_phase()
-                return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 
@@ -1895,33 +672,6 @@ func _unhandled_input(e: InputEvent) -> void:
 		_select_piece_at(cell)
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-		
-		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
-					if active_piece != null:
-						add_money(active_piece, -100)
-					return
-					
-		if _is_targeting:
-			if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
-				_notify_center("ยกเลิกการเลือกเป้าหมาย")
-				_exit_select_mode()
-				get_tree().set_input_as_handled()
-				return
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 		
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
 			if active_piece != null:
@@ -1934,39 +684,6 @@ func _unhandled_input(e: InputEvent) -> void:
 				_exit_select_mode()
 				get_tree().set_input_as_handled()
 				return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-        
-        if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
-            if active_piece != null:
-                add_money(active_piece, -100)
-            return
-                    
-        if _is_targeting:
-            if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
-                _notify_center("ยกเลิกการเลือกเป้าหมาย")
-                _exit_select_mode()
-                get_tree().set_input_as_handled()
-                return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 			elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT:
 				_notify_center("ยกเลิกการเลือกเป้าหมาย")
@@ -2024,67 +741,6 @@ func _process(delta: float) -> void:
 	elif Input.is_action_just_pressed("shield_down"):
 		add_shield(active_piece, -50)  # -50 โล่
 
-<<<<<<< HEAD
-# Board.gd
-
-
-func start_match_host() -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if multiplayer.is_server():
-		_start_match_local()
-		rpc("_start_match_remote")  # กระจายไปทุก client
-=======
-    if multiplayer.is_server():
-        _start_match_local()
-        rpc("_start_match_remote")  # กระจายไปทุก client
->>>>>>> Stashed changes
-=======
-    if multiplayer.is_server():
-        _start_match_local()
-        rpc("_start_match_remote")  # กระจายไปทุก client
->>>>>>> Stashed changes
-=======
-    if multiplayer.is_server():
-        _start_match_local()
-        rpc("_start_match_remote")  # กระจายไปทุก client
->>>>>>> Stashed changes
-
-
-@rpc("any_peer", "reliable", "call_local")
-func _start_match_remote() -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	_start_match_local()
-
-
-func _start_match_local() -> void:
-	# TODO: รีเซ็ต UI, สุ่มลำดับเทิร์น, แจกการ์ด ฯลฯ
-	if multiplayer.is_server():
-		_start_server_side_rules()
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    _start_match_local()
-
-
-func _start_match_local() -> void:
-    # TODO: รีเซ็ต UI, สุ่มลำดับเทิร์น, แจกการ์ด ฯลฯ
-    if multiplayer.is_server():
-        _start_server_side_rules()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 func _give(p: Sprite2D, amount: int) -> void:
@@ -2154,23 +810,37 @@ func _show_win_screen(winner: Sprite2D) -> void:
 	win_title.text = "ชัยชนะ!"
 	win_sub.text = "%s ชนะเกม!" % winner.name
 
-func flash_red(target: Sprite2D) -> void:
-	if target == null:
-		return
+# ========== FX (ไม่ชน tween เดิน) ==========
+func flash_red(target: Sprite2D, times: int = 2, one: float = 0.08) -> void:
+	if target == null: return
 	var tw := create_tween()
-	tw.tween_property(target, "modulate", Color(1, 0, 0, 1), 0.1) # เปลี่ยนเป็นแดง
-	tw.tween_property(target, "modulate", Color(1, 1, 1, 1), 0.2) # กลับเป็นปกติ
+	for i in range(times):
+		tw.tween_property(target, "self_modulate", Color(1, 0.3, 0.3, 1), one)
+		tw.tween_property(target, "self_modulate", Color(1, 1, 1, 1), one)
 
-func shake(target: Node2D, intensity: float = 60.0, duration: float = 0.3) -> void:
-	if target == null:
-		return
-	var original_pos := target.position
+func shake(target: Node2D, intensity: float = 32.0, duration: float = 0.22, step_time: float = 0.03, damping: float = 0.7) -> void:
+	#แรงขึ้น → เพิ่ม intensity (เช่น 20–30)(สั่นถี่) →  ลด step_time (เช่น 0.02)เร็วขึ้น สั้นและดุ → ลด duration (เช่น 0.16–0.22) ฟีลกระแทกกวาดเดียว → ลด damping (เช่น 0.7) ให้แรงตกไว
+	if target == null: return
 	var tw := create_tween()
-	var steps := int(duration / 0.05)
-	for i in steps:
-		var offset := Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
-		tw.tween_property(target, "position", original_pos + offset, 0.05)
-	tw.tween_property(target, "position", original_pos, 0.05)
+	var steps := int(ceil(duration / step_time))
+
+	if target is Sprite2D:
+		var s: Sprite2D = target
+		var base := s.offset
+		for i in range(steps):
+			var amp := intensity * pow(damping, i)                 # ลดแรงทีละสเต็ป
+			var off := Vector2(randf_range(-amp, amp), randf_range(-amp, amp))
+			tw.tween_property(s, "offset", base + off, step_time)
+		tw.tween_property(s, "offset", base, 0.06)
+	else:
+		var basep := target.position
+		for i in range(steps):
+			var amp2 := intensity * pow(damping, i)
+			var off2 := Vector2(randf_range(-amp2, amp2), randf_range(-amp2, amp2))
+			tw.tween_property(target, "position", basep + off2, step_time)
+		tw.tween_property(target, "position", basep, 0.06)
+
+
 
 func _show_move_skip_bar() -> void:
 	if attack_bar == null or skip_btn == null:
@@ -2268,42 +938,29 @@ func _on_settings_closed(overlay: Node) -> void:
 
 
 func _refresh_card_bar_ui() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if card_bar == null: return
-	if active_piece == null: return
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# อย่าไปทำอะไรถ้า card_bar ยังไม่พร้อม
 	if card_bar == null or not is_instance_valid(card_bar):
 		return
-=======
-    # อย่าไปทำอะไรถ้า card_bar ยังไม่พร้อม
-    if card_bar == null or not is_instance_valid(card_bar):
-        return
->>>>>>> Stashed changes
-=======
-    # อย่าไปทำอะไรถ้า card_bar ยังไม่พร้อม
-    if card_bar == null or not is_instance_valid(card_bar):
-        return
->>>>>>> Stashed changes
-=======
-    # อย่าไปทำอะไรถ้า card_bar ยังไม่พร้อม
-    if card_bar == null or not is_instance_valid(card_bar):
-        return
->>>>>>> Stashed changes
-=======
-	if card_bar == null: return
-	if active_piece == null: return
->>>>>>> parent of b073401 (sdsdsd)
+
+	# ถ้าคุณมี NUM_SLOTS ตายตัว:
+	for i in range(NUM_SLOTS):
+		var slot := card_bar.get_node_or_null("Slot%d" % i)
+		if slot == null:
+			continue
+		var btn: Button = slot.get_node_or_null("Button")
+		if btn == null:
+			continue
+
+		var cb := Callable(self, "_on_card_slot_pressed").bind(i)
+		if not btn.pressed.is_connected(cb):
+			btn.pressed.connect(cb)
+
+	# จากนี้ค่อยไปอัปเดต UI อื่น ๆ
+	if active_piece == null:
+		return
+
+	# ... ส่วนอัปเดตไอคอน/ข้อความ/enable ของช่องการ์ด ...
+
 
 	if selected_card_index >= hand_by_piece.get(active_piece, []).size():
 		selected_card_index = -1
@@ -2313,15 +970,9 @@ func _refresh_card_bar_ui() -> void:
 	if slot_buttons.is_empty():
 		_cache_slot_buttons()
 
-<<<<<<< HEAD
-    # ... ส่วนอัปเดตไอคอน/ข้อความ/enable ของช่องการ์ด ...
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
 	for i in range(slot_buttons.size()):
 		var btn := slot_buttons[i]
 		if btn == null: continue
->>>>>>> parent of b073401 (sdsdsd)
 
 		# กันผูกซ้ำ
 		for c in btn.get_signal_connection_list("pressed"):
@@ -2357,319 +1008,49 @@ func _refresh_card_bar_ui() -> void:
 		if not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
 			end_turn_btn.pressed.connect(_on_end_turn_pressed)
 
-<<<<<<< HEAD
-        # กันผูกซ้ำ
-        for c in btn.get_signal_connection_list("pressed"):
-            btn.disconnect("pressed", c.callable)
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
-            btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-
-    var used := bool(used_card_in_round.get(active_piece, false))
-    if use_card_btn:
-        use_card_btn.text = "ใช้การ์ด"
-        use_card_btn.disabled = (selected_card_index < 0) or used
-        if not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-            use_card_btn.pressed.connect(_on_use_card_pressed)
-
-    if end_turn_btn:
-        end_turn_btn.text = "จบเทิร์น"
-        end_turn_btn.disabled = false
-        if not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
-            end_turn_btn.pressed.connect(_on_end_turn_pressed)
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-
-
-func _on_card_slot_pressed(i: int) -> void:
-	selected_card_index = i
-	_refresh_card_bar_ui()
-<<<<<<< HEAD
-=======
 	for i in range(slot_buttons.size()):
 		var btn := slot_buttons[i]
 		if btn == null: continue
-=======
-    for i in range(slot_buttons.size()):
-        var btn := slot_buttons[i]
-        if btn == null: continue
->>>>>>> Stashed changes
 
-        # ... โค้ดเดิมล้าง signal / ตั้ง disabled ...
+		# ... โค้ดเดิมล้าง signal / ตั้ง disabled ...
 
-        if i < hand.size():
-            var info := _card_info(hand[i])
+		if i < hand.size():
+			var info := _card_info(hand[i])
 
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]  # ข้อความด้านหน้าเหมือนเดิม
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-            btn.add_theme_color_override("shadow_color", Color(0,0,0,0.7))
-            btn.add_theme_constant_override("shadow_offset_x", 1)
-            btn.add_theme_constant_override("shadow_offset_y", 1)
-            # ตอนสร้าง stylebox ของการ์ด (normal/hover/pressed/disabled)
+			btn.disabled = false
+			btn.text = "%s\n(%s)" % [info.name, info.effect]  # ข้อความด้านหน้าเหมือนเดิม
+			btn.tooltip_text = info.desc
+			btn.pressed.connect(_on_card_slot_pressed.bind(i))
+			btn.add_theme_color_override("shadow_color", Color(0,0,0,0.7))
+			btn.add_theme_constant_override("shadow_offset_x", 1)
+			btn.add_theme_constant_override("shadow_offset_y", 1)
+			# ตอนสร้าง stylebox ของการ์ด (normal/hover/pressed/disabled)
 
 
-        if i < hand.size():
-            var info := _card_info(hand[i])
+		if i < hand.size():
+			var info := _card_info(hand[i])
 
-            # ✅ ประกาศข้อความที่ต้องการโชว์บนไพ่
-            var final_text := "%s\n(%s)" % [info.name, info.effect]
-            _apply_card_skin(btn, info)
-            _apply_card_box_size(btn)              
-            _fit_button_text(btn, final_text)
-            
+			# ✅ ประกาศข้อความที่ต้องการโชว์บนไพ่
+			var final_text := "%s\n(%s)" % [info.name, info.effect]
+			_apply_card_skin(btn, info)
+			_apply_card_box_size(btn)              
+			_fit_button_text(btn, final_text)
+			
 
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
+			if selected_card_index == i:
+				btn.add_theme_color_override("font_color", Color.WHITE)
+			else:
+				btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
+		else:
+			btn.disabled = true
+			btn.text = "-"
+			btn.tooltip_text = ""
 
 
 func _on_card_slot_pressed(i: int) -> void:
-<<<<<<< Updated upstream
 	selected_card_index = i
 	SFX.play_ui("card_select")
 	_refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
-	for i in range(slot_buttons.size()):
-		var btn := slot_buttons[i]
-		if btn == null: continue
-=======
-
-
-    if selected_card_index >= hand_by_piece.get(active_piece, []).size():
-        selected_card_index = -1
-
-    var hand: Array = hand_by_piece.get(active_piece, [])
-
-    if slot_buttons.is_empty():
-        _cache_slot_buttons()
-
-    for i in range(slot_buttons.size()):
-        var btn := slot_buttons[i]
-        if btn == null: continue
-
-        # กันผูกซ้ำ
-        for c in btn.get_signal_connection_list("pressed"):
-            btn.disconnect("pressed", c.callable)
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
-            btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-
-    var used := bool(used_card_in_round.get(active_piece, false))
-    if use_card_btn:
-        use_card_btn.text = "ใช้การ์ด"
-        use_card_btn.disabled = (selected_card_index < 0) or used
-        if not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-            use_card_btn.pressed.connect(_on_use_card_pressed)
-
-    if end_turn_btn:
-        end_turn_btn.text = "จบเทิร์น"
-        end_turn_btn.disabled = false
-        if not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
-            end_turn_btn.pressed.connect(_on_end_turn_pressed)
-
-    for i in range(slot_buttons.size()):
-        var btn := slot_buttons[i]
-        if btn == null: continue
->>>>>>> Stashed changes
-
-        # ... โค้ดเดิมล้าง signal / ตั้ง disabled ...
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]  # ข้อความด้านหน้าเหมือนเดิม
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-            btn.add_theme_color_override("shadow_color", Color(0,0,0,0.7))
-            btn.add_theme_constant_override("shadow_offset_x", 1)
-            btn.add_theme_constant_override("shadow_offset_y", 1)
-            # ตอนสร้าง stylebox ของการ์ด (normal/hover/pressed/disabled)
-
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-
-            # ✅ ประกาศข้อความที่ต้องการโชว์บนไพ่
-            var final_text := "%s\n(%s)" % [info.name, info.effect]
-            _apply_card_skin(btn, info)
-            _apply_card_box_size(btn)              
-            _fit_button_text(btn, final_text)
-            
-
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
-
-
-func _on_card_slot_pressed(i: int) -> void:
-<<<<<<< Updated upstream
-	selected_card_index = i
-	SFX.play_ui("card_select")
-	_refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
-	for i in range(slot_buttons.size()):
-		var btn := slot_buttons[i]
-		if btn == null: continue
-=======
-
-
-    if selected_card_index >= hand_by_piece.get(active_piece, []).size():
-        selected_card_index = -1
-
-    var hand: Array = hand_by_piece.get(active_piece, [])
-
-    if slot_buttons.is_empty():
-        _cache_slot_buttons()
-
-    for i in range(slot_buttons.size()):
-        var btn := slot_buttons[i]
-        if btn == null: continue
-
-        # กันผูกซ้ำ
-        for c in btn.get_signal_connection_list("pressed"):
-            btn.disconnect("pressed", c.callable)
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
-            btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-
-    var used := bool(used_card_in_round.get(active_piece, false))
-    if use_card_btn:
-        use_card_btn.text = "ใช้การ์ด"
-        use_card_btn.disabled = (selected_card_index < 0) or used
-        if not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-            use_card_btn.pressed.connect(_on_use_card_pressed)
-
-    if end_turn_btn:
-        end_turn_btn.text = "จบเทิร์น"
-        end_turn_btn.disabled = false
-        if not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
-            end_turn_btn.pressed.connect(_on_end_turn_pressed)
-
-    for i in range(slot_buttons.size()):
-        var btn := slot_buttons[i]
-        if btn == null: continue
->>>>>>> Stashed changes
-
-        # ... โค้ดเดิมล้าง signal / ตั้ง disabled ...
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-
-            btn.disabled = false
-            btn.text = "%s\n(%s)" % [info.name, info.effect]  # ข้อความด้านหน้าเหมือนเดิม
-            btn.tooltip_text = info.desc
-            btn.pressed.connect(_on_card_slot_pressed.bind(i))
-            btn.add_theme_color_override("shadow_color", Color(0,0,0,0.7))
-            btn.add_theme_constant_override("shadow_offset_x", 1)
-            btn.add_theme_constant_override("shadow_offset_y", 1)
-            # ตอนสร้าง stylebox ของการ์ด (normal/hover/pressed/disabled)
-
-
-        if i < hand.size():
-            var info := _card_info(hand[i])
-
-            # ✅ ประกาศข้อความที่ต้องการโชว์บนไพ่
-            var final_text := "%s\n(%s)" % [info.name, info.effect]
-            _apply_card_skin(btn, info)
-            _apply_card_box_size(btn)              
-            _fit_button_text(btn, final_text)
-            
-
-            if selected_card_index == i:
-                btn.add_theme_color_override("font_color", Color.WHITE)
-            else:
-                btn.add_theme_color_override("font_color", Color(0.9,0.9,0.9))
-        else:
-            btn.disabled = true
-            btn.text = "-"
-            btn.tooltip_text = ""
-
-
-func _on_card_slot_pressed(i: int) -> void:
-<<<<<<< Updated upstream
-	selected_card_index = i
-	SFX.play_ui("card_select")
-	_refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
-    selected_card_index = i
-    SFX.play_ui("card_select")
-    _refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
-    selected_card_index = i
-    SFX.play_ui("card_select")
-    _refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
-    selected_card_index = i
-    SFX.play_ui("card_select")
-    _refresh_card_bar_ui()
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 func _on_use_card_pressed() -> void:
 	if active_piece == null: return
@@ -2717,36 +1098,6 @@ func apply_damage(p: Sprite2D, dmg: int) -> void:
 	if p == null or dmg <= 0:
 		return
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# 1) หักจากเกราะก่อน
-	var shield_cur: int = int(shield_by_piece.get(p, 0))
-	var after_shield: int = int(max(0, shield_cur - dmg))   # <- ระบุเป็น int
-	var overflow: int = int(max(0, dmg - shield_cur))
-
-	shield_by_piece[p] = after_shield
-	_update_money_ui()  # อัปเดตโชว์เกราะที่ลดลงก่อน
-
-	# 2) ถ้ายังเหลือดาเมจ → หักเงิน
-	if overflow > 0:
-		add_money(p, -overflow)   # ฟังก์ชันนี้ของคุณจะ clamp เป็น 0 + เช็ก kill ให้เรียบร้อย
-	else:
-		_check_win_condition()
-<<<<<<< HEAD
-=======
-	# 🔔 เอฟเฟกต์ไม่ชน tween เดิน
-	play_hit_fx(p)
-=======
-	# 🔔 เอฟเฟกต์ไม่ชน tween เดิน
-	play_hit_fx(p)
-=======
 	# 🔔 เอฟเฟกต์ไม่ชน tween เดิน
 	play_hit_fx(p)
 
@@ -2760,118 +1111,20 @@ func apply_damage(p: Sprite2D, dmg: int) -> void:
 		add_money(p, -overflow)
 	else:
 		_check_win_condition()
->>>>>>> Stashed changes
-=======
-    # 🔔 เอฟเฟกต์ไม่ชน tween เดิน
-    play_hit_fx(p)
-=======
-    # 🔔 เอฟเฟกต์ไม่ชน tween เดิน
-    play_hit_fx(p)
-=======
-    # 🔔 เอฟเฟกต์ไม่ชน tween เดิน
-    play_hit_fx(p)
 
-    # ------ ลอจิกดาเมจเดิมของคุณ ------
-    var shield_cur: int = shield_by_piece.get(p, 0)
-    var after_shield: int = max(0, shield_cur - dmg)
-    var overflow: int = max(0, dmg - shield_cur)
-    shield_by_piece[p] = after_shield
-    _update_money_ui()
-    if overflow > 0:
-        add_money(p, -overflow)
-    else:
-        _check_win_condition()
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
-    # ------ ลอจิกดาเมจเดิมของคุณ ------
-    var shield_cur: int = shield_by_piece.get(p, 0)
-    var after_shield: int = max(0, shield_cur - dmg)
-    var overflow: int = max(0, dmg - shield_cur)
-    shield_by_piece[p] = after_shield
-    _update_money_ui()
-    if overflow > 0:
-        add_money(p, -overflow)
-    else:
-        _check_win_condition()
->>>>>>> Stashed changes
 
-    # ------ ลอจิกดาเมจเดิมของคุณ ------
-    var shield_cur: int = shield_by_piece.get(p, 0)
-    var after_shield: int = max(0, shield_cur - dmg)
-    var overflow: int = max(0, dmg - shield_cur)
-    shield_by_piece[p] = after_shield
-    _update_money_ui()
-    if overflow > 0:
-        add_money(p, -overflow)
-    else:
-        _check_win_condition()
->>>>>>> Stashed changes
-
-	# ------ ลอจิกดาเมจเดิมของคุณ ------
-	var shield_cur: int = shield_by_piece.get(p, 0)
-	var after_shield: int = max(0, shield_cur - dmg)
-	var overflow: int = max(0, dmg - shield_cur)
-	shield_by_piece[p] = after_shield
-	_update_money_ui()
-	if overflow > 0:
-		add_money(p, -overflow)
-	else:
-		_check_win_condition()
->>>>>>> Stashed changes
-
-	# ------ ลอจิกดาเมจเดิมของคุณ ------
-	var shield_cur: int = shield_by_piece.get(p, 0)
-	var after_shield: int = max(0, shield_cur - dmg)
-	var overflow: int = max(0, dmg - shield_cur)
-	shield_by_piece[p] = after_shield
-	_update_money_ui()
-	if overflow > 0:
-		add_money(p, -overflow)
-	else:
-		_check_win_condition()
->>>>>>> Stashed changes
 
 func _start_card_phase() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	is_card_phase = true
-	selected_card_index = -1
-	teleport_pending = false
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 		# ===== ใช้อาคารถ้าพึ่งเดินลงบนมันตานี้ =====
 	if active_piece and _pending_building_cell_by_piece.has(active_piece):
 		var cell := _pending_building_cell_by_piece[active_piece]
 		_pending_building_cell_by_piece.erase(active_piece)
 		_trigger_building_if_ready(active_piece, cell)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
 	is_card_phase = true
 	selected_card_index = -1
 	teleport_pending = false
->>>>>>> Stashed changes
-=======
-        # ===== ใช้อาคารถ้าพึ่งเดินลงบนมันตานี้ =====
-    if active_piece and _pending_building_cell_by_piece.has(active_piece):
-        var cell := _pending_building_cell_by_piece[active_piece]
-        _pending_building_cell_by_piece.erase(active_piece)
-        _trigger_building_if_ready(active_piece, cell)
-=======
-	is_card_phase = true
-	selected_card_index = -1
-	teleport_pending = false
->>>>>>> parent of b073401 (sdsdsd)
 
 	# เคลียร์จุดเดิน + ป้ายแต้ม
 	selected_piece = null
@@ -2890,102 +1143,12 @@ func _start_card_phase() -> void:
 	if use_card_btn and not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
 		use_card_btn.pressed.connect(_on_use_card_pressed)
 
-<<<<<<< HEAD
-    if use_card_btn and not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-        use_card_btn.pressed.connect(_on_use_card_pressed)
-
-<<<<<<< Updated upstream
-=======
-=======
-=======
->>>>>>> Stashed changes
-        # ===== ใช้อาคารถ้าพึ่งเดินลงบนมันตานี้ =====
-    if active_piece and _pending_building_cell_by_piece.has(active_piece):
-        var cell := _pending_building_cell_by_piece[active_piece]
-        _pending_building_cell_by_piece.erase(active_piece)
-        _trigger_building_if_ready(active_piece, cell)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-
-    is_card_phase = true
-    selected_card_index = -1
-    teleport_pending = false
-
-    # เคลียร์จุดเดิน + ป้ายแต้ม
-    selected_piece = null
-    reachable.clear()
-    parent_map.clear()
-    queue_redraw()
-    _hide_roll_label()
-
-    if attack_bar:
-        attack_bar.visible = false
-
-    if card_bar:
-        card_bar.visible = true
-    _refresh_card_bar_ui()
-
-    if use_card_btn and not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-        use_card_btn.pressed.connect(_on_use_card_pressed)
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-
-    is_card_phase = true
-    selected_card_index = -1
-    teleport_pending = false
-
-    # เคลียร์จุดเดิน + ป้ายแต้ม
-    selected_piece = null
-    reachable.clear()
-    parent_map.clear()
-    queue_redraw()
-    _hide_roll_label()
-
-    if attack_bar:
-        attack_bar.visible = false
-
-    if card_bar:
-        card_bar.visible = true
-    _refresh_card_bar_ui()
-
-    if use_card_btn and not use_card_btn.is_connected("pressed", Callable(self, "_on_use_card_pressed")):
-        use_card_btn.pressed.connect(_on_use_card_pressed)
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 	if end_turn_btn and not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
 		end_turn_btn.pressed.connect(_on_end_turn_pressed)
 	if card_bar:
 		# โชว์แบบซ่อนอยู่ (เห็นขอบ) แล้วให้ผู้เล่นเลื่อนไปหาเอง
 		card_bar.visible = true
 		_slide_card_bar(false)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if end_turn_btn and not end_turn_btn.is_connected("pressed", Callable(self, "_on_end_turn_pressed")):
-        end_turn_btn.pressed.connect(_on_end_turn_pressed)
-    if card_bar:
-        # โชว์แบบซ่อนอยู่ (เห็นขอบ) แล้วให้ผู้เล่นเลื่อนไปหาเอง
-        card_bar.visible = true
-        _slide_card_bar(false)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 func _end_card_phase() -> void:
@@ -3180,31 +1343,6 @@ func _update_money_ui() -> void:
 
 
 func add_money(p: Sprite2D, delta: int) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	if p == null:
-		return
-	var cur: int = int(money_by_piece.get(p, hp_start))  # <- cast เป็น int
-	var newv: int = max(0, cur + delta)                  # <- ระบุชนิด
-	money_by_piece[p] = newv
-	_update_money_ui()
-	if newv <= 0:
-		_kill_piece(p)
-		return
-	_check_win_condition()
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	if delta < 0 and p != null:
 		SFX.play_world("attack_hit", p)
 		_broadcast_hit_fx(p)
@@ -3220,81 +1358,11 @@ func add_money(p: Sprite2D, delta: int) -> void:
 		_kill_piece(p)
 		return
 	_check_win_condition()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if delta < 0 and p != null:
-        SFX.play_world("attack_hit", p)
-        _broadcast_hit_fx(p)
-        flash_red(p)
-        shake(p)
-    if p == null:
-        return
-    var cur: int = int(money_by_piece.get(p, hp_start))  # <- cast เป็น int
-    var newv: int = max(0, cur + delta)                  # <- ระบุชนิด
-    money_by_piece[p] = newv
-    _update_money_ui()
-    if newv <= 0:
-        _kill_piece(p)
-        return
-    _check_win_condition()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 
 
 func _kill_piece(p: Sprite2D) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ลบจากบอร์ด & ข้อมูล
-	if piece_cells.has(p):
-		var c: Vector2i = piece_cells[p]
-		board_nodes[c.y][c.x] = null
-		piece_cells.erase(p)
-	money_by_piece.erase(p)
-	if turn_order.has(p):
-		turn_order.erase(p)
-		if turn_order.is_empty():
-			active_piece = null
-		else:
-			turn_idx %= turn_order.size()
-			active_piece = turn_order[turn_idx]
-	p.queue_free()
-	queue_redraw()
-	shield_by_piece.erase(p)         # NEW
-	update_money(p.name, 0)   
-	_update_money_ui()
-	frozen_turns.erase(p)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# ลบจากบอร์ด & ข้อมูล
 	if piece_cells.has(p):
 		var c: Vector2i = piece_cells[p]
@@ -3314,46 +1382,6 @@ func _kill_piece(p: Sprite2D) -> void:
 	update_money(p.name, 0)
 	_update_money_ui()
 	frozen_turns.erase(p)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    # ลบจากบอร์ด & ข้อมูล
-    if piece_cells.has(p):
-        var c: Vector2i = piece_cells[p]
-        board_nodes[c.y][c.x] = null
-        piece_cells.erase(p)
-    money_by_piece.erase(p)
-    if turn_order.has(p):
-        turn_order.erase(p)
-        if turn_order.is_empty():
-            active_piece = null
-        else:
-            turn_idx %= turn_order.size()
-            active_piece = turn_order[turn_idx]
-    p.queue_free()
-    queue_redraw()
-    shield_by_piece.erase(p)         # NEW
-    update_money(p.name, 0)
-    _update_money_ui()
-    frozen_turns.erase(p)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	# ถ้าคนเล่นหมด → จบเกม (ตามที่อยากทำ)
 	if turn_order.size() == 0:
@@ -3540,30 +1568,6 @@ func _compute_reachable(start: Vector2i, steps: int) -> void:
 		var u: Vector2i = q.pop_front()
 		if dist[u] == steps: continue
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-		for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-			var v: Vector2i = u + d
-			if not _in_bounds(v): continue
-			if _is_occupied(v) and v != start: continue
-			if v in dist: continue
-			dist[v] = dist[u] + 1
-			parent_map[v] = u
-			reachable.append(v)
-			q.append(v)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 		for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 			var v: Vector2i = u + d
 			if not _in_bounds(v): continue
@@ -3573,242 +1577,46 @@ func _compute_reachable(start: Vector2i, steps: int) -> void:
 			parent_map[v] = u
 			reachable.append(v)
 			q.append(v)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-        for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-            var v: Vector2i = u + d
-            if not _in_bounds(v): continue
-            if not _is_walkable_cell(v) and v != start: continue 
-            if v in dist: continue
-            dist[v] = dist[u] + 1
-            parent_map[v] = u
-            reachable.append(v)
-            q.append(v)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 
 func _build_path(parents: Dictionary, dest: Vector2i) -> Array[Vector2i]:
-<<<<<<< HEAD
-    var path: Array[Vector2i] = []
-    var cur: Vector2i = dest
-    while parents.has(cur):
-        path.push_front(cur)
-        cur = parents[cur]
-    return path
-
-func _grid_to_world(cell: Vector2i) -> Vector2:
-    # ปรับตามระบบบอร์ดของคุณถ้าจุดกำเนิด/ออฟเซ็ตต่างกัน
-    return Vector2(
-        cell.x * CELL_SIZE + CELL_SIZE * 0.5,
-        cell.y * CELL_SIZE + CELL_SIZE * 0.5
-    )
-
-func _move_piece_visual_only(piece: Node, target_cell: Vector2i) -> void:
-    # TODO: เปลี่ยนเป็นการเดินจริง (เช่นเรียก _move_piece_step_by_step())
-    # ตอนนี้ให้ขยับตำแหน่งไปยัง target_cell แบบทันที
-    if piece is Node2D:
-        var pos := _grid_to_world(target_cell)
-        piece.global_position = pos
-        
-        
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-func _grid_to_world(cell: Vector2i) -> Vector2:
-	# ปรับตามระบบบอร์ดของคุณถ้าจุดกำเนิด/ออฟเซ็ตต่างกัน
-	return Vector2(
-		cell.x * CELL_SIZE + CELL_SIZE * 0.5,
-		cell.y * CELL_SIZE + CELL_SIZE * 0.5
-	)
-
-func _move_piece_visual_only(piece: Node, target_cell: Vector2i) -> void:
-	# TODO: เปลี่ยนเป็นการเดินจริง (เช่นเรียก _move_piece_step_by_step())
-	# ตอนนี้ให้ขยับตำแหน่งไปยัง target_cell แบบทันที
-	if piece is Node2D:
-		var pos := _grid_to_world(target_cell)
-		piece.global_position = pos
-		
-		
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
 	var path: Array[Vector2i] = []
 	var cur: Vector2i = dest
 	while parents.has(cur):
 		path.push_front(cur)
 		cur = parents[cur]
 	return path
->>>>>>> parent of b073401 (sdsdsd)
 
 # ====================================================================
 # MOVE
 # ====================================================================
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-func _move_piece_step_by_step(piece: Sprite2D, start_cell: Vector2i, path: Array[Vector2i]) -> void:
+# เดินตามเส้นทางที่คำนวณไว้ ทีละช่อง
+func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
 	if path.is_empty():
 		return
+
+	# กัน path ชนสิ่งกีดขวาง (เผื่อกรณีมีจุดใดพลาดการกรองมาก่อน)
+	var safe_path: Array[Vector2i] = []
+	for c in path:
+		if not _is_walkable_cell(c):
+			break
+		safe_path.append(c)
+	if safe_path.is_empty():
+		return
+
+	# จุดเริ่มต้น: ใช้ cell ปัจจุบันของหมากจาก piece_cells
+	var cur: Vector2i = piece_cells.get(piece, Vector2i(0, 0))
+	var orig_start: Vector2i = cur
+
 	is_moving = true
-
-	var cur: Vector2i = start_cell
-	for step_cell in path:
+	for step_cell in safe_path:
 		var dir: Vector2i = step_cell - cur
-		if "set_move_dir" in piece:
+		if piece.has_method("set_move_dir"):
 			piece.set_move_dir(dir)
-		await _tween_move_one_cell(piece, cur, step_cell)  # <- ของคุณ
-
+		await _tween_move_one_cell(piece, cur, step_cell)  # tween ของคุณเดิม
 		cur = step_cell
 
-	board_nodes[start_cell.y][start_cell.x] = null
-	board_nodes[cur.y][cur.x] = piece
-	piece_cells[piece] = cur
-		 # <- สำคัญมาก ใช้กับไฮไลท์เทิร์น
-<<<<<<< HEAD
-=======
-# เดินตามเส้นทางที่คำนวณไว้ ทีละช่อง
-func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
-<<<<<<< Updated upstream
-	if path.is_empty():
-		return
-=======
-# เดินตามเส้นทางที่คำนวณไว้ ทีละช่อง
-func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
-    if path.is_empty():
-        return
-
-    # กัน path ชนสิ่งกีดขวาง (เผื่อกรณีมีจุดใดพลาดการกรองมาก่อน)
-    var safe_path: Array[Vector2i] = []
-    for c in path:
-        if not _is_walkable_cell(c):
-            break
-        safe_path.append(c)
-    if safe_path.is_empty():
-        return
-
-    # จุดเริ่มต้น: ใช้ cell ปัจจุบันของหมากจาก piece_cells
-    var cur: Vector2i = piece_cells.get(piece, Vector2i(0, 0))
-    var orig_start: Vector2i = cur
-
-    is_moving = true
-    for step_cell in safe_path:
-        var dir: Vector2i = step_cell - cur
-        if piece.has_method("set_move_dir"):
-            piece.set_move_dir(dir)
-        await _tween_move_one_cell(piece, cur, step_cell)  # tween ของคุณเดิม
-        cur = step_cell
-
-    # อัปเดตสถานะกระดาน
-    if board_nodes.size() > 0:
-        board_nodes[orig_start.y][orig_start.x] = null
-        board_nodes[cur.y][cur.x] = piece
-
-<<<<<<< Updated upstream
-	piece_cells[piece] = cur
-	piece.set_meta("cell", cur)
-	if piece.has_method("set_idle"):
-		piece.set_idle()
-	elif piece.has_method("set_move_dir"):
-		piece.set_move_dir(Vector2i.ZERO)  # เผื่อสคริปต์คุณใช้ทิศ 0 = idle
-	if building_at.has(cur) and int(building_cd.get(cur, 0)) <= 0:
-		_pending_building_cell_by_piece[piece] = cur
-	else:
-		_pending_building_cell_by_piece.erase(piece)
-	is_moving = false
->>>>>>> Stashed changes
-=======
-    piece_cells[piece] = cur
-    piece.set_meta("cell", cur)
-    if piece.has_method("set_idle"):
-        piece.set_idle()
-    elif piece.has_method("set_move_dir"):
-        piece.set_move_dir(Vector2i.ZERO)  # เผื่อสคริปต์คุณใช้ทิศ 0 = idle
-    if building_at.has(cur) and int(building_cd.get(cur, 0)) <= 0:
-        _pending_building_cell_by_piece[piece] = cur
-    else:
-        _pending_building_cell_by_piece.erase(piece)
-    is_moving = false
->>>>>>> Stashed changes
-=======
-    if path.is_empty():
-        return
->>>>>>> Stashed changes
-
-    # กัน path ชนสิ่งกีดขวาง (เผื่อกรณีมีจุดใดพลาดการกรองมาก่อน)
-    var safe_path: Array[Vector2i] = []
-    for c in path:
-        if not _is_walkable_cell(c):
-            break
-        safe_path.append(c)
-    if safe_path.is_empty():
-        return
-
-    # จุดเริ่มต้น: ใช้ cell ปัจจุบันของหมากจาก piece_cells
-    var cur: Vector2i = piece_cells.get(piece, Vector2i(0, 0))
-    var orig_start: Vector2i = cur
-
-    is_moving = true
-    for step_cell in safe_path:
-        var dir: Vector2i = step_cell - cur
-        if piece.has_method("set_move_dir"):
-            piece.set_move_dir(dir)
-        await _tween_move_one_cell(piece, cur, step_cell)  # tween ของคุณเดิม
-        cur = step_cell
-
-<<<<<<< Updated upstream
-=======
-# เดินตามเส้นทางที่คำนวณไว้ ทีละช่อง
-func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
-    if path.is_empty():
-        return
-
-    # กัน path ชนสิ่งกีดขวาง (เผื่อกรณีมีจุดใดพลาดการกรองมาก่อน)
-    var safe_path: Array[Vector2i] = []
-    for c in path:
-        if not _is_walkable_cell(c):
-            break
-        safe_path.append(c)
-    if safe_path.is_empty():
-        return
-
-    # จุดเริ่มต้น: ใช้ cell ปัจจุบันของหมากจาก piece_cells
-    var cur: Vector2i = piece_cells.get(piece, Vector2i(0, 0))
-    var orig_start: Vector2i = cur
-
-    is_moving = true
-    for step_cell in safe_path:
-        var dir: Vector2i = step_cell - cur
-        if piece.has_method("set_move_dir"):
-            piece.set_move_dir(dir)
-        await _tween_move_one_cell(piece, cur, step_cell)  # tween ของคุณเดิม
-        cur = step_cell
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
 	# อัปเดตสถานะกระดาน
 	if board_nodes.size() > 0:
 		board_nodes[orig_start.y][orig_start.x] = null
@@ -3825,53 +1633,7 @@ func _move_piece_step_by_step(piece: Sprite2D, path: Array[Vector2i]) -> void:
 	else:
 		_pending_building_cell_by_piece.erase(piece)
 	is_moving = false
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
-    # อัปเดตสถานะกระดาน
-    if board_nodes.size() > 0:
-        board_nodes[orig_start.y][orig_start.x] = null
-        board_nodes[cur.y][cur.x] = piece
-=======
-    # อัปเดตสถานะกระดาน
-    if board_nodes.size() > 0:
-        board_nodes[orig_start.y][orig_start.x] = null
-        board_nodes[cur.y][cur.x] = piece
 
-    piece_cells[piece] = cur
-    piece.set_meta("cell", cur)
-    if piece.has_method("set_idle"):
-        piece.set_idle()
-    elif piece.has_method("set_move_dir"):
-        piece.set_move_dir(Vector2i.ZERO)  # เผื่อสคริปต์คุณใช้ทิศ 0 = idle
-    if building_at.has(cur) and int(building_cd.get(cur, 0)) <= 0:
-        _pending_building_cell_by_piece[piece] = cur
-    else:
-        _pending_building_cell_by_piece.erase(piece)
-    is_moving = false
->>>>>>> Stashed changes
-
-    piece_cells[piece] = cur
-    piece.set_meta("cell", cur)
-    if piece.has_method("set_idle"):
-        piece.set_idle()
-    elif piece.has_method("set_move_dir"):
-        piece.set_move_dir(Vector2i.ZERO)  # เผื่อสคริปต์คุณใช้ทิศ 0 = idle
-    if building_at.has(cur) and int(building_cd.get(cur, 0)) <= 0:
-        _pending_building_cell_by_piece[piece] = cur
-    else:
-        _pending_building_cell_by_piece.erase(piece)
-    is_moving = false
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
-
-	if "set_idle" in piece:
-		piece.set_idle()
-
-	is_moving = false
-=======
->>>>>>> Stashed changes
 
 func _tween_move_one_cell(piece: Sprite2D, from: Vector2i, to: Vector2i) -> void:
 	var to_pos := _cell_center(to)
@@ -3917,31 +1679,6 @@ func _end_turn() -> void:
 		ChatBus.log_event("system", "เริ่มเทิร์นของ %s", [active_piece.name])
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ถ้า wrap กลับมาที่ index 0 = ครบ 1 รอบ
-	if turn_idx == 0:
-		turn_cycles_done += 1
-		draw_card_for_all()
-		_tick_counter_hack_all() 
-		_decay_all_def_one_round()    
-		_update_round_label()
-		if turn_cycles_done >= MAX_TURNS:
-			_end_game_by_turn_limit()
-			return
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# ถ้า wrap กลับมาที่ index 0 = ครบ 1 รอบ
 	if turn_idx == 0:
 		turn_cycles_done += 1
@@ -3954,39 +1691,6 @@ func _end_turn() -> void:
 		if turn_cycles_done >= MAX_TURNS:
 			_end_game_by_turn_limit()
 			return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    # ถ้า wrap กลับมาที่ index 0 = ครบ 1 รอบ
-    if turn_idx == 0:
-        turn_cycles_done += 1
-        draw_card_for_all()
-        _tick_counter_hack_all()
-        _decay_all_def_one_round()
-        _decay_building_cd_one_round()
-        _tick_building_cooldowns() 
-        _update_round_label()
-        if turn_cycles_done >= MAX_TURNS:
-            _end_game_by_turn_limit()
-            return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	# ข้ามผู้เล่นที่ถูก Freeze (ลดค่านับทุกครั้งที่ถึงคิวเขา)
 	var safety := 0
@@ -4014,55 +1718,14 @@ func _end_turn() -> void:
 		safety += 1
 
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
 	_update_side_turn_label()
 	_update_turn_ui()     # ถ้ายังต้องแสดงที่อื่นอยู่
 	_update_money_ui()
 	queue_redraw()
 	_check_win_condition()
-	
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-	_update_side_turn_label()
-	_update_turn_ui()     # ถ้ายังต้องแสดงที่อื่นอยู่
-	_update_money_ui()
-	queue_redraw()
-	_check_win_condition()
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    _update_side_turn_label()
-    _update_turn_ui()     # ถ้ายังต้องแสดงที่อื่นอยู่
-    _update_money_ui()
-    queue_redraw()
-    _check_win_condition()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 
 
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 func _end_game_by_turn_limit() -> void:
 	# หาเงินสูงสุดจากผู้เล่นที่ยังอยู่บนบอร์ด
 	var winner: Sprite2D = null
@@ -4148,61 +1811,12 @@ func draw_card_for_all() -> void:
 	# ถ้าคุณมี UI แสดงมือของ “ผู้เล่นปัจจุบัน” ให้รีเฟรชด้วย
 	_refresh_card_bar_ui()
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-func _deal_initial_hands(card_count: int = 5) -> void:
+func _deal_initial_hands(card_count: int = 8) -> void:
 	_ensure_hand_maps()
 	if turn_order.is_empty():
 		for child in $Pieces.get_children():
 			if child is Sprite2D:
 				turn_order.append(child as Sprite2D)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-func _deal_initial_hands(card_count: int = 8) -> void:
-<<<<<<< Updated upstream
-	_ensure_hand_maps()
-	if turn_order.is_empty():
-		for child in $Pieces.get_children():
-			if child is Sprite2D:
-				turn_order.append(child as Sprite2D)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
-func _deal_initial_hands(card_count: int = 8) -> void:
->>>>>>> Stashed changes
-=======
-func _deal_initial_hands(card_count: int = 8) -> void:
->>>>>>> Stashed changes
-    _ensure_hand_maps()
-    if turn_order.is_empty():
-        for child in $Pieces.get_children():
-            if child is Sprite2D:
-                turn_order.append(child as Sprite2D)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	for p in turn_order:
 		var hand: Array = []
@@ -4331,61 +1945,10 @@ func _hide_roll_label() -> void:
 
 # เปิด
 func _update_turn_ui() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if turn_label:
-		turn_label.text = "Turn: %s" % players[current_player]
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	if turn_label:
 		turn_label.text = "Turn: %s" % players[current_player]
 
-func _update_turn_labels_safely() -> void:
-	# ถ้าคุณมีฟังก์ชัน/เลเบลของตัวเองอยู่แล้ว ให้เรียกของเดิมแทน
-	if has_node("CanvasLayer/SideTurnLabel"):
-		var lbl := $"CanvasLayer/SideTurnLabel"
-		if lbl is Label:
-			lbl.text = "ตอนนี้เป็นตาของ Peer %d" % current_turn_peer_id
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    if turn_label:
-        turn_label.text = "Turn: %s" % players[current_player]
 
-func _update_turn_labels_safely() -> void:
-    # ถ้าคุณมีฟังก์ชัน/เลเบลของตัวเองอยู่แล้ว ให้เรียกของเดิมแทน
-    if has_node("CanvasLayer/SideTurnLabel"):
-        var lbl := $"CanvasLayer/SideTurnLabel"
-        if lbl is Label:
-            lbl.text = "ตอนนี้เป็นตาของ Peer %d" % current_turn_peer_id
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-	if turn_label:
-		turn_label.text = "Turn: %s" % players[current_player]
->>>>>>> parent of b073401 (sdsdsd)
 
 func _next_turn() -> void:
 	# เคลียร์สถานะเลือก / จุดเดิน / แต้
@@ -4542,31 +2105,6 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
 
 
 func _setup_card_bar_slide() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	if card_bar == null:
-		return
-
-	# คำนวนตำแหน่งเป้าหมาย
-	var screen_h := get_viewport_rect().size.y
-	var bar_h := card_bar.size.y
-	_bar_shown_y = screen_h - bar_h            # โชว์เต็ม
-	_bar_hidden_y = screen_h - card_peek_px    # ซ่อน เหลือให้เห็นแค่ขอบบน
-
-	# ตั้งค่าเริ่มต้น (ซ่อนหลบลงไว้ก่อน)
-	card_bar.position.y = _bar_hidden_y
-	card_bar.visible = true
-	# ให้ซ้อนบน UI อื่น
-	card_bar.z_index = 1000
-<<<<<<< HEAD
-=======
 	if card_bar == null:
 		return
 	
@@ -4583,111 +2121,6 @@ func _setup_card_bar_slide() -> void:
 	card_bar.visible = false
 	# ให้ซ้อนบน UI อื่น
 	card_bar.z_index = 1000
->>>>>>> Stashed changes
-
-=======
-	if card_bar == null:
-		return
-	
-	
-	
-	# คำนวนตำแหน่งเป้าหมาย
-	var screen_h := get_viewport_rect().size.y
-	var bar_h := card_bar.size.y
-	_bar_shown_y = screen_h - bar_h            # โชว์เต็ม
-	_bar_hidden_y = screen_h - card_peek_px    # ซ่อน เหลือให้เห็นแค่ขอบบน
-=======
-=======
->>>>>>> Stashed changes
-    if card_bar == null:
-        return
-    
-    
-    
-    # คำนวนตำแหน่งเป้าหมาย
-    var screen_h := get_viewport_rect().size.y
-    var bar_h := card_bar.size.y
-    _bar_shown_y = screen_h - bar_h            # โชว์เต็ม
-    _bar_hidden_y = screen_h - card_peek_px    # ซ่อน เหลือให้เห็นแค่ขอบบน
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-
-    # ตั้งค่าเริ่มต้น (ซ่อนหลบลงไว้ก่อน)
-    card_bar.position.y = _bar_hidden_y
-    card_bar.visible = false
-    # ให้ซ้อนบน UI อื่น
-    card_bar.z_index = 1000
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
-	if card_bar == null:
-		return
-	
-	
-	
-	# คำนวนตำแหน่งเป้าหมาย
-	var screen_h := get_viewport_rect().size.y
-	var bar_h := card_bar.size.y
-	_bar_shown_y = screen_h - bar_h            # โชว์เต็ม
-	_bar_hidden_y = screen_h - card_peek_px    # ซ่อน เหลือให้เห็นแค่ขอบบน
-=======
->>>>>>> Stashed changes
-
-    # ตั้งค่าเริ่มต้น (ซ่อนหลบลงไว้ก่อน)
-    card_bar.position.y = _bar_hidden_y
-    card_bar.visible = false
-    # ให้ซ้อนบน UI อื่น
-    card_bar.z_index = 1000
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-	# ตัวจับเวลาไว้ดีเลย์ตอนซ่อน
-	if _hold_timer == null:
-		_hold_timer = Timer.new()
-		_hold_timer.one_shot = true
-		add_child(_hold_timer)
-		_hold_timer.timeout.connect(func():
-			_slide_card_bar(false)   # ครบเวลาแล้วค่อยหุบ
-		)
-=======
-=======
->>>>>>> Stashed changes
-=======
-    if card_bar == null:
-        return
-    
-    
-    
-    # คำนวนตำแหน่งเป้าหมาย
-    var screen_h := get_viewport_rect().size.y
-    var bar_h := card_bar.size.y
-    _bar_shown_y = screen_h - bar_h            # โชว์เต็ม
-    _bar_hidden_y = screen_h - card_peek_px    # ซ่อน เหลือให้เห็นแค่ขอบบน
-
-    # ตั้งค่าเริ่มต้น (ซ่อนหลบลงไว้ก่อน)
-    card_bar.position.y = _bar_hidden_y
-    card_bar.visible = false
-    # ให้ซ้อนบน UI อื่น
-    card_bar.z_index = 1000
-
->>>>>>> Stashed changes
-    # ตัวจับเวลาไว้ดีเลย์ตอนซ่อน
-    if _hold_timer == null:
-        _hold_timer = Timer.new()
-        _hold_timer.one_shot = true
-        add_child(_hold_timer)
-        _hold_timer.timeout.connect(func():
-            _slide_card_bar(false)   # ครบเวลาแล้วค่อยหุบ
-        )
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
 
 	# ตัวจับเวลาไว้ดีเลย์ตอนซ่อน
 	if _hold_timer == null:
@@ -4697,7 +2130,6 @@ func _setup_card_bar_slide() -> void:
 		_hold_timer.timeout.connect(func():
 			_slide_card_bar(false)   # ครบเวลาแล้วค่อยหุบ
 		)
->>>>>>> parent of b073401 (sdsdsd)
 
 
 	# ต่อสัญญาณ hover ทั้งแถบการ์ด และ hover zone
@@ -4712,25 +2144,6 @@ func _setup_card_bar_slide() -> void:
 	if not card_bar.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
 		card_bar.mouse_entered.connect(_keep_bar_open)
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-	_cache_slot_buttons()
-	for b in slot_buttons:
-		if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-			b.mouse_entered.connect(_keep_bar_open)
-
-	# เริ่มต้นให้หุบ (เห็นแค่ขอบ)
-	_slide_card_bar(false)
-<<<<<<< HEAD
-=======
 	# ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
 	_cache_slot_buttons()
 	for b in slot_buttons:
@@ -4745,111 +2158,11 @@ func _setup_card_bar_slide() -> void:
 		if btn == null:
 			continue
 
-=======
-	# ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-	_cache_slot_buttons()
-	for b in slot_buttons:
-		if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-			b.mouse_entered.connect(_keep_bar_open)
-	
-	for i in range(NUM_SLOTS):
-		var slot := card_bar.get_node_or_null("Slot%d" % i)
-		if slot == null:
-			continue
-		var btn: Button = slot.get_node_or_null("Button")
-		if btn == null:
-			continue
-
->>>>>>> Stashed changes
-=======
-	# ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-	_cache_slot_buttons()
-	for b in slot_buttons:
-		if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-			b.mouse_entered.connect(_keep_bar_open)
-	
-	for i in range(NUM_SLOTS):
-		var slot := card_bar.get_node_or_null("Slot%d" % i)
-		if slot == null:
-			continue
-		var btn: Button = slot.get_node_or_null("Button")
-		if btn == null:
-			continue
-
->>>>>>> Stashed changes
 		var cb := Callable(self, "_on_card_slot_pressed").bind(i)
 		if not btn.pressed.is_connected(cb):
 			btn.pressed.connect(cb)
 	# เริ่มต้นให้หุบ (เห็นแค่ขอบ)
 	_slide_card_bar(false)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-    # ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-    _cache_slot_buttons()
-    for b in slot_buttons:
-        if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-            b.mouse_entered.connect(_keep_bar_open)
-    
-    for i in range(NUM_SLOTS):
-        var slot := card_bar.get_node_or_null("Slot%d" % i)
-        if slot == null:
-            continue
-        var btn: Button = slot.get_node_or_null("Button")
-        if btn == null:
-            continue
-
-=======
-    # ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-    _cache_slot_buttons()
-    for b in slot_buttons:
-        if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-            b.mouse_entered.connect(_keep_bar_open)
-    
-    for i in range(NUM_SLOTS):
-        var slot := card_bar.get_node_or_null("Slot%d" % i)
-        if slot == null:
-            continue
-        var btn: Button = slot.get_node_or_null("Button")
-        if btn == null:
-            continue
-
->>>>>>> Stashed changes
-=======
-    # ถ้าจะให้ขยับบนปุ่ม/สล็อตก็รีสตาร์ทด้วย
-    _cache_slot_buttons()
-    for b in slot_buttons:
-        if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
-            b.mouse_entered.connect(_keep_bar_open)
-    
-    for i in range(NUM_SLOTS):
-        var slot := card_bar.get_node_or_null("Slot%d" % i)
-        if slot == null:
-            continue
-        var btn: Button = slot.get_node_or_null("Button")
-        if btn == null:
-            continue
-
->>>>>>> Stashed changes
-        var cb := Callable(self, "_on_card_slot_pressed").bind(i)
-        if not btn.pressed.is_connected(cb):
-            btn.pressed.connect(cb)
-    # เริ่มต้นให้หุบ (เห็นแค่ขอบ)
-    _slide_card_bar(false)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 func _slide_card_bar(show: bool) -> void:
 	if card_bar == null:
@@ -4881,130 +2194,28 @@ func _on_card_hover_exit() -> void:
 	pass
 
 func _card_info(card: Variant) -> Dictionary:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# คืนค่า {name, effect, desc} เสมอ
 	if card == null:
-		return {"name":"(card)","effect":"","desc":""}
+		return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
+
 	if card is CardData:
-		var c: CardData = card
-		return {"name": c.name, "effect": c.effect, "desc": c.desc}
+		var c := card as CardData
+		return {
+			"name": c.name,
+			"effect": c.effect,
+			"desc": c.desc,
+			"type": int(c.type)   # <<== สำคัญ
+		}
+
 	if card is Dictionary:
 		return {
-			"name": String(card.get("name","(card)")),
-			"effect": String(card.get("effect","")),
-			"desc": String(card.get("desc",""))
+			"name":  String(card.get("name","(card)")),
+			"effect":String(card.get("effect","")),
+			"desc":  String(card.get("desc","")),
+			"type":  int(card.get("type", CardType.MYSTERY))
 		}
-	# fallback
-	return {"name":"(card)","effect":"","desc":""}
-<<<<<<< HEAD
-=======
-	if card == null:
-		return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
 
-	if card is CardData:
-		var c := card as CardData
-		return {
-			"name": c.name,
-			"effect": c.effect,
-			"desc": c.desc,
-			"type": int(c.type)   # <<== สำคัญ
-		}
-=======
-	if card == null:
-		return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
-=======
-	if card == null:
-		return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
-=======
-    if card == null:
-        return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
->>>>>>> Stashed changes
-
-=======
-    if card == null:
-        return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
-
->>>>>>> Stashed changes
-=======
-    if card == null:
-        return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
-
->>>>>>> Stashed changes
-    if card is CardData:
-        var c := card as CardData
-        return {
-            "name": c.name,
-            "effect": c.effect,
-            "desc": c.desc,
-            "type": int(c.type)   # <<== สำคัญ
-        }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-    if card is Dictionary:
-        return {
-            "name":  String(card.get("name","(card)")),
-            "effect":String(card.get("effect","")),
-            "desc":  String(card.get("desc","")),
-            "type":  int(card.get("type", CardType.MYSTERY))
-        }
-
-<<<<<<< Updated upstream
 	return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
->>>>>>> Stashed changes
-=======
-    return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
->>>>>>> Stashed changes
 
-	if card is CardData:
-		var c := card as CardData
-		return {
-			"name": c.name,
-			"effect": c.effect,
-			"desc": c.desc,
-			"type": int(c.type)   # <<== สำคัญ
-		}
-=======
->>>>>>> Stashed changes
-
-    if card is Dictionary:
-        return {
-            "name":  String(card.get("name","(card)")),
-            "effect":String(card.get("effect","")),
-            "desc":  String(card.get("desc","")),
-            "type":  int(card.get("type", CardType.MYSTERY))
-        }
-
-<<<<<<< Updated upstream
-	return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
->>>>>>> Stashed changes
-=======
-    return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-    if card is Dictionary:
-        return {
-            "name":  String(card.get("name","(card)")),
-            "effect":String(card.get("effect","")),
-            "desc":  String(card.get("desc","")),
-            "type":  int(card.get("type", CardType.MYSTERY))
-        }
-
-    return {"name":"(card)","effect":"","desc":"","type":CardType.MYSTERY}
-
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 # helper: steal amount จาก target ให้ thief
 # - shield จะถูกลดก่อน (แต่ไม่ถูกย้าย)
@@ -5040,12 +2251,6 @@ func _steal_from(target: Sprite2D, thief: Sprite2D, amount: int, bypass_all_def:
 # ใน _apply_card_effect ให้เปลี่ยน "steal_100" เป็นเรียก helper
 # คืนลิสต์ทุก cell ว่างบนกระดาน
 func _all_empty_cells() -> Array[Vector2i]:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
 	var cells: Array[Vector2i] = []
 	for y in range(BOARD_SIZE):
 		for x in range(BOARD_SIZE):
@@ -5053,12 +2258,6 @@ func _all_empty_cells() -> Array[Vector2i]:
 			if not _is_occupied(c):
 				cells.append(c)
 	return cells
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 
 func _all_walkable_empty_cells() -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
@@ -5068,28 +2267,6 @@ func _all_walkable_empty_cells() -> Array[Vector2i]:
 			if _is_walkable_cell(c) and not _is_occupied(c):
 				cells.append(c)
 	return cells
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-
-<<<<<<< Updated upstream
-# เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
-func _begin_teleport_targeting() -> void:
-<<<<<<< Updated upstream
-	# ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
-	is_card_phase = false
-	if card_bar: 
-		card_bar.visible = false
-=======
-func _all_walkable_empty_cells() -> Array[Vector2i]:
-	var cells: Array[Vector2i] = []
-	for y in range(BOARD_SIZE):
-		for x in range(BOARD_SIZE):
-			var c := Vector2i(x, y)
-			if _is_walkable_cell(c) and not _is_occupied(c):
-				cells.append(c)
-	return cells
-=======
->>>>>>> Stashed changes
 
 # เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
 func _begin_teleport_targeting() -> void:
@@ -5097,36 +2274,6 @@ func _begin_teleport_targeting() -> void:
 	is_card_phase = false
 	if card_bar:
 		card_bar.visible = false
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if not _is_occupied(c):
-                cells.append(c)
-    return cells
-
-func _all_walkable_empty_cells() -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if _is_walkable_cell(c) and not _is_occupied(c):
-                cells.append(c)
-    return cells
-=======
-
-# เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
-func _begin_teleport_targeting() -> void:
-	# ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
-	is_card_phase = false
-	if card_bar: 
-		card_bar.visible = false
->>>>>>> parent of b073401 (sdsdsd)
 
 	# ให้กรอบไฮไลต์อยู่รอบตัวผู้เล่นตอนนี้ก็ได้ (ไม่บังคับ)
 	if piece_cells.has(active_piece):
@@ -5134,65 +2281,6 @@ func _begin_teleport_targeting() -> void:
 	else:
 		selected_cell = _pixel_to_cell(active_piece.global_position)
 
-<<<<<<< HEAD
-    # ให้กรอบไฮไลต์อยู่รอบตัวผู้เล่นตอนนี้ก็ได้ (ไม่บังคับ)
-    if piece_cells.has(active_piece):
-        selected_cell = piece_cells[active_piece]
-    else:
-        selected_cell = _pixel_to_cell(active_piece.global_position)
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# จุดขาว = ทุก cell ว่าง
-	reachable = _all_empty_cells()
-	parent_map.clear()  # ไม่ใช้ BFS ในโหมดนี้
-	queue_redraw()
-<<<<<<< HEAD
-=======
-=======
-	# ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
-	is_card_phase = false
-	if card_bar:
-		card_bar.visible = false
-=======
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if not _is_occupied(c):
-                cells.append(c)
-    return cells
-
-func _all_walkable_empty_cells() -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if _is_walkable_cell(c) and not _is_occupied(c):
-                cells.append(c)
-    return cells
-
-# เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
-func _begin_teleport_targeting() -> void:
-    # ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
-    is_card_phase = false
-    if card_bar:
-        card_bar.visible = false
->>>>>>> Stashed changes
-
-    # ให้กรอบไฮไลต์อยู่รอบตัวผู้เล่นตอนนี้ก็ได้ (ไม่บังคับ)
-    if piece_cells.has(active_piece):
-        selected_cell = piece_cells[active_piece]
-    else:
-        selected_cell = _pixel_to_cell(active_piece.global_position)
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# จุดขาว = ทุก cell ว่าง
 	reachable = _all_walkable_empty_cells()
 	parent_map.clear()  # ไม่ใช้ BFS ในโหมดนี้
@@ -5200,60 +2288,8 @@ func _begin_teleport_targeting() -> void:
 	var node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % active_piece)
 	if node:
 		SFX.play_world("warp", node)
-=======
-=======
->>>>>>> Stashed changes
-=======
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if not _is_occupied(c):
-                cells.append(c)
-    return cells
-
-func _all_walkable_empty_cells() -> Array[Vector2i]:
-    var cells: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if _is_walkable_cell(c) and not _is_occupied(c):
-                cells.append(c)
-    return cells
-
-# เข้าโหมดเลือกเป้าหมายวาร์ป: ซ่อนแถบการ์ด, โชว์จุดทั่วแมพ
-func _begin_teleport_targeting() -> void:
-    # ไม่ต้องอยู่ใน CardBar แล้ว ให้คลิกบนบอร์ดได้เลย
-    is_card_phase = false
-    if card_bar:
-        card_bar.visible = false
-
-    # ให้กรอบไฮไลต์อยู่รอบตัวผู้เล่นตอนนี้ก็ได้ (ไม่บังคับ)
-    if piece_cells.has(active_piece):
-        selected_cell = piece_cells[active_piece]
-    else:
-        selected_cell = _pixel_to_cell(active_piece.global_position)
-
->>>>>>> Stashed changes
-    # จุดขาว = ทุก cell ว่าง
-    reachable = _all_walkable_empty_cells()
-    parent_map.clear()  # ไม่ใช้ BFS ในโหมดนี้
-    queue_redraw()
-    var node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % active_piece)
-    if node:
-        SFX.play_world("warp", node)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 # หา enemy ที่ใกล้ที่สุดภายใน Manhattan range (exclude user)
 func _find_nearest_enemy_in_range(user: Sprite2D, max_range: int) -> Sprite2D:
@@ -5327,172 +2363,31 @@ func _exit_select_mode() -> void:
 func _steal_percent_respecting_shield(victim: Sprite2D, thief: Sprite2D, percent: float) -> int:
 	if victim == null or thief == null: return 0
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ✅ ถ้ามี Counter Hack บนเหยื่อ → สะท้อนกลับใส่ผู้โจมตี
+	# Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
 	if _has_counter_hack(victim):
 		var attacker_money := int(money_by_piece.get(thief, 0))
 		var want := int(floor(max(0.0, percent) * float(attacker_money)))
-		var got := _steal_from(thief, victim, want)  # เคารพโล่ของผู้โจมตีตามปกติ
+		var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
 		_notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
 		_clear_counter_hack(victim)
 		ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-	[victim.name, thief.name, got])
-
-
+			[victim.name, thief.name, got])
 		return got
 
 	# ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
 	var victim_money := int(money_by_piece.get(victim, 0))
 	var want := int(floor(max(0.0, percent) * float(victim_money)))
 	if want <= 0: return 0
-	ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันการโจมตีจาก %s", [victim.name, thief.name])
-<<<<<<< HEAD
-=======
-	# Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
-	if _has_counter_hack(victim):
-		var attacker_money := int(money_by_piece.get(thief, 0))
-		var want := int(floor(max(0.0, percent) * float(attacker_money)))
-		var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
-		_notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
-		_clear_counter_hack(victim)
-		ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-			[victim.name, thief.name, got])
-		return got
-=======
-=======
->>>>>>> Stashed changes
-    # Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
-    if _has_counter_hack(victim):
-        var attacker_money := int(money_by_piece.get(thief, 0))
-        var want := int(floor(max(0.0, percent) * float(attacker_money)))
-        var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
-        _notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
-        _clear_counter_hack(victim)
-        ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-            [victim.name, thief.name, got])
-        return got
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
 
-    # ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
-    var victim_money := int(money_by_piece.get(victim, 0))
-    var want := int(floor(max(0.0, percent) * float(victim_money)))
-    if want <= 0: return 0
-
-<<<<<<< Updated upstream
 	# *** อย่า log Reflective Surge ตรงนี้ ***
 	# ให้ _steal_from() จัดการเอง (ถ้ามี Reflective Surge จะคืน 0)
->>>>>>> Stashed changes
-=======
-	# Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
-	if _has_counter_hack(victim):
-		var attacker_money := int(money_by_piece.get(thief, 0))
-		var want := int(floor(max(0.0, percent) * float(attacker_money)))
-		var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
-		_notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
-		_clear_counter_hack(victim)
-		ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-			[victim.name, thief.name, got])
-		return got
-=======
-	# Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
-	if _has_counter_hack(victim):
-		var attacker_money := int(money_by_piece.get(thief, 0))
-		var want := int(floor(max(0.0, percent) * float(attacker_money)))
-		var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
-		_notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
-		_clear_counter_hack(victim)
-		ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-			[victim.name, thief.name, got])
-		return got
-=======
-    # Counter Hack (สะท้อนกลับผู้โจมตี) — อันนี้คุณทำไว้ถูกแล้ว
-    if _has_counter_hack(victim):
-        var attacker_money := int(money_by_piece.get(thief, 0))
-        var want := int(floor(max(0.0, percent) * float(attacker_money)))
-        var got := _steal_from(thief, victim, want)  # เคารพโล่ตามปกติ
-        _notify_center("Counter Hack! สะท้อนกลับ %d จาก %s" % [got, thief.name])
-        _clear_counter_hack(victim)
-        ChatBus.log_event("blocked", "Counter Hack! %s สะท้อนกลับใส่ %s (+%d)",
-            [victim.name, thief.name, got])
-        return got
->>>>>>> Stashed changes
-
-    # ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
-    var victim_money := int(money_by_piece.get(victim, 0))
-    var want := int(floor(max(0.0, percent) * float(victim_money)))
-    if want <= 0: return 0
-
-    # *** อย่า log Reflective Surge ตรงนี้ ***
-    # ให้ _steal_from() จัดการเอง (ถ้ามี Reflective Surge จะคืน 0)
-
-<<<<<<< Updated upstream
-	return _steal_from(victim, thief, want)
->>>>>>> Stashed changes
-=======
-    return _steal_from(victim, thief, want)
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-
-    # ปกติ: ขโมยตามเปอร์เซ็นต์ของเหยื่อ
-    var victim_money := int(money_by_piece.get(victim, 0))
-    var want := int(floor(max(0.0, percent) * float(victim_money)))
-    if want <= 0: return 0
-
-    # *** อย่า log Reflective Surge ตรงนี้ ***
-    # ให้ _steal_from() จัดการเอง (ถ้ามี Reflective Surge จะคืน 0)
-
-<<<<<<< Updated upstream
-	return _steal_from(victim, thief, want)
->>>>>>> Stashed changes
-=======
-    # *** อย่า log Reflective Surge ตรงนี้ ***
-    # ให้ _steal_from() จัดการเอง (ถ้ามี Reflective Surge จะคืน 0)
->>>>>>> Stashed changes
-=======
-    return _steal_from(victim, thief, want)
->>>>>>> Stashed changes
-
-    return _steal_from(victim, thief, want)
-=======
 
 	return _steal_from(victim, thief, want)
->>>>>>> parent of b073401 (sdsdsd)
+
 
 
 
 func _spawn_markers_for_pieces(pieces: Array) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	for piece in pieces:
-		if not piece is Node2D: 
-			continue
-		var area := Area2D.new()
-		area.input_pickable = true         # สำคัญ
-		area.z_index = 10000
-		area.set_meta("target_piece_name", piece.name)
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	for piece in pieces:
 		if not piece is Node2D:
 			continue
@@ -5500,34 +2395,6 @@ func _spawn_markers_for_pieces(pieces: Array) -> void:
 		area.input_pickable = true         # สำคัญ
 		area.z_index = 2000
 		area.set_meta("target_piece_name", piece.name)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    for piece in pieces:
-        if not piece is Node2D:
-            continue
-        var area := Area2D.new()
-        area.input_pickable = true         # สำคัญ
-        area.z_index = 2000
-        area.set_meta("target_piece_name", piece.name)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 		var sprite := Sprite2D.new()
 		sprite.texture = _marker_tex
@@ -5570,34 +2437,6 @@ func _on_target_marker_input(viewport: Viewport, event: InputEvent, _shape_idx: 
 		if target_piece_name == "":
 			return
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-		match _card_target_mode:
-			CardTargetMode.SELECT_PLAYER_STEAL50:
-				_resolve_card_steal_50_per(target_piece_name)
-			CardTargetMode.SELECT_ADJ_STEAL20:
-				_resolve_card_steal_20_per(target_piece_name)
-			CardTargetMode.SELECT_PLAYER_FREEZE:
-				_resolve_card_freeze(target_piece_name)
-				
-		_exit_select_mode()
-		get_viewport().set_input_as_handled()
-		
-func _flash_piece_node(p: Sprite2D) -> void:
-	if p:
-		var old_color := p.modulate
-		p.modulate = Color(1, 0.5, 0.5)   # เปลี่ยนเป็นสีแดงอ่อน
-		await get_tree().create_timer(0.18).timeout
-		p.modulate = old_color
-<<<<<<< HEAD
-=======
 		match _card_target_mode:
 			CardTargetMode.SELECT_PLAYER_STEAL50:
 				_resolve_card_steal_50_per(target_piece_name)
@@ -5612,112 +2451,26 @@ func _flash_piece_node(p: Sprite2D) -> void:
 		get_viewport().set_input_as_handled()
 		
 func _flash_piece_node(p: Sprite2D) -> void:
-=======
-		match _card_target_mode:
-			CardTargetMode.SELECT_PLAYER_STEAL50:
-				_resolve_card_steal_50_per(target_piece_name)
-				SFX.play_ui("card_root")
-			CardTargetMode.SELECT_ADJ_STEAL20:
-				_resolve_card_steal_20_per(target_piece_name)
-				
-			CardTargetMode.SELECT_PLAYER_FREEZE:
-				_resolve_card_freeze(target_piece_name)
-				SFX.play_ui("card_freeze")
-		_exit_select_mode()
-		get_viewport().set_input_as_handled()
-		
-func _flash_piece_node(p: Sprite2D) -> void:
->>>>>>> Stashed changes
-=======
-		match _card_target_mode:
-			CardTargetMode.SELECT_PLAYER_STEAL50:
-				_resolve_card_steal_50_per(target_piece_name)
-				SFX.play_ui("card_root")
-			CardTargetMode.SELECT_ADJ_STEAL20:
-				_resolve_card_steal_20_per(target_piece_name)
-				
-			CardTargetMode.SELECT_PLAYER_FREEZE:
-				_resolve_card_freeze(target_piece_name)
-				SFX.play_ui("card_freeze")
-		_exit_select_mode()
-		get_viewport().set_input_as_handled()
-		
-func _flash_piece_node(p: Sprite2D) -> void:
->>>>>>> Stashed changes
 	if p == null: return
-=======
-        match _card_target_mode:
-            CardTargetMode.SELECT_PLAYER_STEAL50:
-                _resolve_card_steal_50_per(target_piece_name)
-                SFX.play_ui("card_root")
-            CardTargetMode.SELECT_ADJ_STEAL20:
-                _resolve_card_steal_20_per(target_piece_name)
-                
-            CardTargetMode.SELECT_PLAYER_FREEZE:
-                _resolve_card_freeze(target_piece_name)
-                SFX.play_ui("card_freeze")
-        _exit_select_mode()
-        get_viewport().set_input_as_handled()
-        
-func _flash_piece_node(p: Sprite2D) -> void:
-    if p == null: return
->>>>>>> Stashed changes
-=======
-        match _card_target_mode:
-            CardTargetMode.SELECT_PLAYER_STEAL50:
-                _resolve_card_steal_50_per(target_piece_name)
-                SFX.play_ui("card_root")
-            CardTargetMode.SELECT_ADJ_STEAL20:
-                _resolve_card_steal_20_per(target_piece_name)
-                
-            CardTargetMode.SELECT_PLAYER_FREEZE:
-                _resolve_card_freeze(target_piece_name)
-                SFX.play_ui("card_freeze")
-        _exit_select_mode()
-        get_viewport().set_input_as_handled()
-        
-func _flash_piece_node(p: Sprite2D) -> void:
-    if p == null: return
->>>>>>> Stashed changes
-=======
-        match _card_target_mode:
-            CardTargetMode.SELECT_PLAYER_STEAL50:
-                _resolve_card_steal_50_per(target_piece_name)
-                SFX.play_ui("card_root")
-            CardTargetMode.SELECT_ADJ_STEAL20:
-                _resolve_card_steal_20_per(target_piece_name)
-                
-            CardTargetMode.SELECT_PLAYER_FREEZE:
-                _resolve_card_freeze(target_piece_name)
-                SFX.play_ui("card_freeze")
-        _exit_select_mode()
-        get_viewport().set_input_as_handled()
-        
-func _flash_piece_node(p: Sprite2D) -> void:
-    if p == null: return
->>>>>>> Stashed changes
 
-    # ถ้ามี tween เก่าค้างอยู่ ให้ฆ่าทิ้งและรีเซ็ตสี
-    if _flash_tw_by_piece.has(p) and _flash_tw_by_piece[p] and _flash_tw_by_piece[p].is_running():
-        _flash_tw_by_piece[p].kill()
-    p.modulate = Color(1,1,1,1)  # reset ก่อนเริ่มใหม่
+	# ถ้ามี tween เก่าค้างอยู่ ให้ฆ่าทิ้งและรีเซ็ตสี
+	if _flash_tw_by_piece.has(p) and _flash_tw_by_piece[p] and _flash_tw_by_piece[p].is_running():
+		_flash_tw_by_piece[p].kill()
+	p.modulate = Color(1,1,1,1)  # reset ก่อนเริ่มใหม่
 
-    var t := create_tween()
-    _flash_tw_by_piece[p] = t
-    t.tween_property(p, "modulate", Color(1, 0.5, 0.5, 1), 0.08).set_trans(Tween.TRANS_SINE)
-    t.tween_property(p, "modulate", Color(1, 1, 1, 1), 0.16).set_trans(Tween.TRANS_SINE)
+	var t := create_tween()
+	_flash_tw_by_piece[p] = t
+	t.tween_property(p, "modulate", Color(1, 0.5, 0.5, 1), 0.08).set_trans(Tween.TRANS_SINE)
+	t.tween_property(p, "modulate", Color(1, 1, 1, 1), 0.16).set_trans(Tween.TRANS_SINE)
 
-    # กันหลุด: จบแล้วลบ mapping และรีเซ็ตสีอีกครั้งเพื่อความชัวร์
-    t.finished.connect(func():
-        if is_instance_valid(p):
-            p.modulate = Color(1,1,1,1)
-        if _flash_tw_by_piece.get(p) == t:
-            _flash_tw_by_piece.erase(p)
-    )
+	# กันหลุด: จบแล้วลบ mapping และรีเซ็ตสีอีกครั้งเพื่อความชัวร์
+	t.finished.connect(func():
+		if is_instance_valid(p):
+			p.modulate = Color(1,1,1,1)
+		if _flash_tw_by_piece.get(p) == t:
+			_flash_tw_by_piece.erase(p)
+	)
 
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 func _resolve_card_steal_50_per(target_piece_name: String) -> void:
@@ -5864,29 +2617,6 @@ func draw_card_for_piece(piece: Sprite2D, count: int = 1) -> int:
 		if card == null:
 			break
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-		drawn += 1           # นับว่า “จั่วแล้ว” แม้เป็นใบลงโทษ
-		if _on_card_drawn(piece, card):
-			continue         # ใช้/ทิ้งทันที ไม่ใส่มือ
-		hand.append(card)
-	hand_by_piece[piece] = hand
-	_refresh_hand_ui_for(piece)
-	ChatBus.log_event("penalty", "ผู้เล่น %s ได้รับการ์ด \"System Failure\" (-200)", [piece.name])
-	return drawn
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 		drawn += 1           # นับว่า “จั่วแล้ว” แม้เป็นใบลงโทษ
 		if _on_card_drawn(piece, card):
 			continue         # ใช้/ทิ้งทันที ไม่ใส่มือ
@@ -5894,34 +2624,6 @@ func draw_card_for_piece(piece: Sprite2D, count: int = 1) -> int:
 	hand_by_piece[piece] = hand
 	_refresh_hand_ui_for(piece)
 	return drawn
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-        drawn += 1           # นับว่า “จั่วแล้ว” แม้เป็นใบลงโทษ
-        if _on_card_drawn(piece, card):
-            continue         # ใช้/ทิ้งทันที ไม่ใส่มือ
-        hand.append(card)
-    hand_by_piece[piece] = hand
-    _refresh_hand_ui_for(piece)
-    return drawn
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
 func _refresh_hand_ui_for(piece: Sprite2D) -> void:
@@ -5961,60 +2663,12 @@ func _goto_next_turn() -> void:
 	if has_node("CanvasLayer/SideTurnLabel"):
 		$"CanvasLayer/SideTurnLabel".text = "ตอนนี้เป็นเทิร์นของ: %s" % active_piece.name
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# 5) ถ้า wrap แปลว่าครบหนึ่งรอบ → เพิ่มเลขรอบ + แจกการ์ด
-	if wrapped:
-		current_round += 1
-	if has_method("_update_round_label_ui"):
-		_update_round_label_ui()
-		_on_new_round_started() 
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# 5) ถ้า wrap แปลว่าครบหนึ่งรอบ → เพิ่มเลขรอบ + แจกการ์ด
 	if wrapped:
 		current_round += 1
 	if has_method("_update_round_label_ui"):
 		_update_round_label_ui()
 		_on_new_round_started()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    # 5) ถ้า wrap แปลว่าครบหนึ่งรอบ → เพิ่มเลขรอบ + แจกการ์ด
-    if wrapped:
-        current_round += 1
-    if has_method("_update_round_label_ui"):
-        _update_round_label_ui()
-        _on_new_round_started()
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 func _get_alive_turn_order() -> Array:
 	var order: Array = []
@@ -6145,27 +2799,6 @@ func _decay_all_def_one_round() -> void:
 
 # ถ้ามีดาเมจให้ใช้ฟังก์ชันนี้
 func apply_damage_from(attacker: Sprite2D, victim: Sprite2D, dmg: int, bypass_all_def: bool=false) -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	if victim == null or dmg <= 0: return
-	if _has_all_def(victim) and not bypass_all_def:
-		_notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-		_clear_all_def(victim)
-		_update_money_ui()
-		ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-	[victim.name, attacker.name])
-
-		return
-	apply_damage(victim, dmg)  # ของเดิม
-<<<<<<< HEAD
-=======
 	if victim == null or dmg <= 0: return
 	if _has_all_def(victim) and not bypass_all_def:
 		_notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
@@ -6175,28 +2808,6 @@ func apply_damage_from(attacker: Sprite2D, victim: Sprite2D, dmg: int, bypass_al
 	[victim.name, attacker.name])
 	
 
-=======
-	if victim == null or dmg <= 0: return
-	if _has_all_def(victim) and not bypass_all_def:
-		_notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-		_clear_all_def(victim)
-		_update_money_ui()
-		ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-	[victim.name, attacker.name])
-	
-
->>>>>>> Stashed changes
-=======
-	if victim == null or dmg <= 0: return
-	if _has_all_def(victim) and not bypass_all_def:
-		_notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-		_clear_all_def(victim)
-		_update_money_ui()
-		ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-	[victim.name, attacker.name])
-	
-
->>>>>>> Stashed changes
 		
 	apply_damage(victim, dmg)  # ของเดิม
 	var shield_cur: int = int(shield_by_piece.get(victim, 0))
@@ -6206,63 +2817,6 @@ func apply_damage_from(attacker: Sprite2D, victim: Sprite2D, dmg: int, bypass_al
 	else:
 		SFX.play_world("attack_hit", victim)
 		return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-    if victim == null or dmg <= 0: return
-    if _has_all_def(victim) and not bypass_all_def:
-        _notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-        _clear_all_def(victim)
-        _update_money_ui()
-        ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-    [victim.name, attacker.name])
-    
-
-=======
-    if victim == null or dmg <= 0: return
-    if _has_all_def(victim) and not bypass_all_def:
-        _notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-        _clear_all_def(victim)
-        _update_money_ui()
-        ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-    [victim.name, attacker.name])
-    
-
->>>>>>> Stashed changes
-=======
-    if victim == null or dmg <= 0: return
-    if _has_all_def(victim) and not bypass_all_def:
-        _notify_center("Reflective Surge ของ %s ป้องกันดาเมจ" % victim.name)
-        _clear_all_def(victim)
-        _update_money_ui()
-        ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
-    [victim.name, attacker.name])
-    
-
->>>>>>> Stashed changes
-        
-    apply_damage(victim, dmg)  # ของเดิม
-    var shield_cur: int = int(shield_by_piece.get(victim, 0))
-    var overflow: int   = int(max(0, dmg - shield_cur))
-    if overflow == 0:
-        SFX.play_world("block", victim)
-    else:
-        SFX.play_world("attack_hit", victim)
-        return
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 func _is_frozen(p: Sprite2D) -> bool:
 	return int(frozen_turns.get(p, 0)) > 0
@@ -6284,35 +2838,6 @@ func _on_card_drawn(piece: Sprite2D, card: Variant) -> bool:
 	var norm := eff.strip_edges().to_lower().replace("_","").replace("-","")
 	var name_key := String(info.name).strip_edges().to_lower().replace(" ","")
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# ---- System Failure: apply & discard immediately ----
-	var is_sysfail := (
-		name_key.contains("systemfailure")
-		or norm.contains("systemfailure")
-		or norm == "gones200" or norm == "gone200"
-		or norm.begins_with("gones") or norm.begins_with("gones200")
-		or norm == "lose200"
-	)
-	if is_sysfail:
-		add_money(piece, -SYSTEM_FAILURE_PENALTY)  # 200
-		_notify_center("System Failure! %s เสียเงิน %d" % [piece.name, SYSTEM_FAILURE_PENALTY])
-		_flash_piece_node(piece)
-		_shake_camera_light()
-		return true   # ใช้แล้วทิ้ง ไม่ต้องใส่มือ
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	var is_sysfail := (
 		name_key.contains("systemfailure")
 		or norm.contains("systemfailure")
@@ -6329,71 +2854,7 @@ func _on_card_drawn(piece: Sprite2D, card: Variant) -> bool:
 		return true   # ← ใช้/ทิ้งทันที เฉพาะกรณีนี้เท่านั้น
 
 	return false      # ← การ์ดปกติ: ไม่ได้ใช้ทันที ให้เข้ามือ
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-    var is_sysfail := (
-        name_key.contains("systemfailure")
-        or norm.contains("systemfailure")
-        or norm == "gones200" or norm == "gone200"
-        or norm.begins_with("gones") or norm.begins_with("gones200")
-        or norm == "lose200"
-    )
-    if is_sysfail:
-        add_money(piece, -SYSTEM_FAILURE_PENALTY)
-        _notify_center("System Failure! %s เสียเงิน %d" % [piece.name, SYSTEM_FAILURE_PENALTY])
-        ChatBus.log_event("penalty", "System Failure! %s เสียเงิน %d", [piece.name, SYSTEM_FAILURE_PENALTY])
-        _flash_piece_node(piece)
-        _shake_camera_light()
-        return true   # ← ใช้/ทิ้งทันที เฉพาะกรณีนี้เท่านั้น
-=======
-    var is_sysfail := (
-        name_key.contains("systemfailure")
-        or norm.contains("systemfailure")
-        or norm == "gones200" or norm == "gone200"
-        or norm.begins_with("gones") or norm.begins_with("gones200")
-        or norm == "lose200"
-    )
-    if is_sysfail:
-        add_money(piece, -SYSTEM_FAILURE_PENALTY)
-        _notify_center("System Failure! %s เสียเงิน %d" % [piece.name, SYSTEM_FAILURE_PENALTY])
-        ChatBus.log_event("penalty", "System Failure! %s เสียเงิน %d", [piece.name, SYSTEM_FAILURE_PENALTY])
-        _flash_piece_node(piece)
-        _shake_camera_light()
-        return true   # ← ใช้/ทิ้งทันที เฉพาะกรณีนี้เท่านั้น
-=======
-    var is_sysfail := (
-        name_key.contains("systemfailure")
-        or norm.contains("systemfailure")
-        or norm == "gones200" or norm == "gone200"
-        or norm.begins_with("gones") or norm.begins_with("gones200")
-        or norm == "lose200"
-    )
-    if is_sysfail:
-        add_money(piece, -SYSTEM_FAILURE_PENALTY)
-        _notify_center("System Failure! %s เสียเงิน %d" % [piece.name, SYSTEM_FAILURE_PENALTY])
-        ChatBus.log_event("penalty", "System Failure! %s เสียเงิน %d", [piece.name, SYSTEM_FAILURE_PENALTY])
-        _flash_piece_node(piece)
-        _shake_camera_light()
-        return true   # ← ใช้/ทิ้งทันที เฉพาะกรณีนี้เท่านั้น
 
-    return false      # ← การ์ดปกติ: ไม่ได้ใช้ทันที ให้เข้ามือ
->>>>>>> Stashed changes
-
-    return false      # ← การ์ดปกติ: ไม่ได้ใช้ทันที ให้เข้ามือ
->>>>>>> Stashed changes
-
-    return false      # ← การ์ดปกติ: ไม่ได้ใช้ทันที ให้เข้ามือ
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
-
-	return false
 
 func _norm(s: String) -> String:
 	return s.strip_edges().to_lower().replace("_","").replace("-","").replace(" ","")
@@ -6427,9 +2888,27 @@ func _draw_random_card_excluding_system_failure() -> Resource:
 		return null
 	return pool[randi() % pool.size()]
 
+# ==== Auto-calibrate board geometry from Sprite2D ====
+var _board_px_size: Vector2 = Vector2.ZERO
+var _board_top_left: Vector2 = Vector2.ZERO  # local-space
+
+func _calc_board_geom() -> void:
+	# ใช้ได้กับ Sprite2D ที่ centered = true (ค่าเริ่มต้นของ Board)
+	if texture == null:
+		return
+	_board_px_size = texture.get_size() * scale      # ขนาดกระดานหลังสเกล (หน่วย: พิกเซล local)
+	_board_top_left = -_board_px_size * 0.5          # มุมซ้ายบนใน local space
+
+	# ปรับ CELL_SIZE ให้ตรงกับกระดานจริงอัตโนมัติ (กันคลาด)
+	var ideal := _board_px_size.x / float(BOARD_SIZE)
+	if abs(float(CELL_SIZE) - ideal) > 1.0:
+		CELL_SIZE = int(round(ideal))                 # อัปเดตให้พอดีช่อง
+
 func cell_to_pos(cell: Vector2i) -> Vector2:
-	# วางกึ่งกลางช่อง (ถ้า sprite คุณอิงมุมซ้ายบน ให้เอา +CELL_SIZE/2 ออก)
-	return Vector2(cell.x * CELL_SIZE + CELL_SIZE / 2, cell.y * CELL_SIZE + CELL_SIZE / 2)
+	var tl := _board_top_left   # จาก _calc_board_geom()
+	return tl + Vector2((cell.x + 0.5) * CELL_SIZE, (cell.y + 0.5) * CELL_SIZE)
+
+
 
 func in_bounds(c: Vector2i) -> bool:
 	return c.x >= 0 and c.y >= 0 and c.x < BOARD_SIZE and c.y < BOARD_SIZE
@@ -6438,31 +2917,6 @@ func generate_obstacles() -> void:
 	randomize()
 	_clear_obstacles_visual()
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-
-	# ห้ามเกิดบนช่องเกิดผู้เล่น + ช่องที่มีหมากอยู่
-	var forbidden := _collect_forbidden_cells()
-
-	var added := 0
-	var tried := 0
-	var max_try := 500
-<<<<<<< HEAD
-=======
-	var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-	var forbidden := _collect_forbidden_cells()
-=======
-	var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-	var forbidden := _collect_forbidden_cells()
-=======
 	var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
 	var forbidden := _collect_forbidden_cells()
 
@@ -6473,337 +2927,96 @@ func generate_obstacles() -> void:
 			var c := Vector2i(x, y)
 			if forbidden.has(c): continue
 			candidates.append(c)
->>>>>>> Stashed changes
-=======
-    var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-    var forbidden := _collect_forbidden_cells()
-=======
-    var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-    var forbidden := _collect_forbidden_cells()
-=======
-    var total_target := randi_range(OBSTACLE_MIN, OBSTACLE_MAX)
-    var forbidden := _collect_forbidden_cells()
 
-    # รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
-    var candidates: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if forbidden.has(c): continue
-            candidates.append(c)
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
-    # รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
-    var candidates: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if forbidden.has(c): continue
-            candidates.append(c)
->>>>>>> Stashed changes
-
-<<<<<<< Updated upstream
-    # รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
-    var candidates: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if forbidden.has(c): continue
-            candidates.append(c)
->>>>>>> Stashed changes
-
-<<<<<<< Updated upstream
-	# รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
-	var candidates: Array[Vector2i] = []
-	for y in range(BOARD_SIZE):
-		for x in range(BOARD_SIZE):
-			var c := Vector2i(x, y)
-			if forbidden.has(c): continue
-			candidates.append(c)
->>>>>>> Stashed changes
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	# รวม candidate ทุกช่องที่อยู่ในบอร์ดและไม่ต้องห้าม
-	var candidates: Array[Vector2i] = []
-	for y in range(BOARD_SIZE):
-		for x in range(BOARD_SIZE):
-			var c := Vector2i(x, y)
-			if forbidden.has(c): continue
-			candidates.append(c)
->>>>>>> Stashed changes
-
-<<<<<<< Updated upstream
-	# เลือก seed จำนวน OBSTACLE_SEEDS ก่อน
-	var seeds: Array[Vector2i] = []
-
-	while seeds.size() < OBSTACLE_SEEDS and tried < max_try:
-		tried += 1
-		var c := Vector2i(randi_range(0, BOARD_SIZE - 1), randi_range(0, BOARD_SIZE - 1))
-		if not in_bounds(c): 
-			continue
-		if forbidden.has(c): 
-			continue
-		if obstacle_cells.has(c): 
-			continue
-		obstacle_cells[c] = true
-		seeds.append(c)
-		added += 1
-		_spawn_obstacle_sprite(c)
-
-	# ขยายจากแต่ละ seed แบบคลัสเตอร์
-	var frontier: Array[Vector2i] = seeds.duplicate()
-=======
 	var placed: Array[Vector2i] = []
 	var tries := 0
 	var max_try := 2000
-=======
-	var placed: Array[Vector2i] = []
-	var tries := 0
-	var max_try := 2000
-=======
-    var placed: Array[Vector2i] = []
-    var tries := 0
-    var max_try := 2000
->>>>>>> Stashed changes
 
-    for c in candidates:
-        if placed.size() >= total_target: break
-        if tries >= max_try: break
-        tries += 1
+	for c in candidates:
+		if placed.size() >= total_target: break
+		if tries >= max_try: break
+		tries += 1
 
-        # บังคับให้กระจาย: ต้องห่างจากที่วางไว้แล้วอย่างน้อย OBSTACLE_MIN_DIST (Manhattan)
-        var ok := true
-        if OBSTACLE_MIN_DIST > 0:
-            for p in placed:
-                var d: int = abs(p.x - c.x) + abs(p.y - c.y)
-                if d < OBSTACLE_MIN_DIST:
-                    ok = false
-                    break
-        if not ok: continue
+		# บังคับให้กระจาย: ต้องห่างจากที่วางไว้แล้วอย่างน้อย OBSTACLE_MIN_DIST (Manhattan)
+		var ok := true
+		if OBSTACLE_MIN_DIST > 0:
+			for p in placed:
+				var d: int = abs(p.x - c.x) + abs(p.y - c.y)
+				if d < OBSTACLE_MIN_DIST:
+					ok = false
+					break
+		if not ok: continue
 
-        obstacle_cells[c] = true
-        placed.append(c)
-        _spawn_obstacle_sprite(c)
-    # จบ — ไม่มี seed/frontier แล้ว
-
-<<<<<<< Updated upstream
-	# (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-	# ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
->>>>>>> Stashed changes
-=======
-    # (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-    # ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
->>>>>>> Stashed changes
-=======
-    var placed: Array[Vector2i] = []
-    var tries := 0
-    var max_try := 2000
->>>>>>> Stashed changes
-
-    for c in candidates:
-        if placed.size() >= total_target: break
-        if tries >= max_try: break
-        tries += 1
-
-        # บังคับให้กระจาย: ต้องห่างจากที่วางไว้แล้วอย่างน้อย OBSTACLE_MIN_DIST (Manhattan)
-        var ok := true
-        if OBSTACLE_MIN_DIST > 0:
-            for p in placed:
-                var d: int = abs(p.x - c.x) + abs(p.y - c.y)
-                if d < OBSTACLE_MIN_DIST:
-                    ok = false
-                    break
-        if not ok: continue
-
-        obstacle_cells[c] = true
-        placed.append(c)
-        _spawn_obstacle_sprite(c)
-    # จบ — ไม่มี seed/frontier แล้ว
-
-<<<<<<< Updated upstream
-	# (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-	# ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
->>>>>>> Stashed changes
-=======
-    # (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-    # ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
->>>>>>> Stashed changes
-
-	while added < total_target and frontier.size() > 0 and tried < max_try:
-		tried += 1
-		# หยิบจุดสุ่มจากแนวหน้า
-		var base_idx := randi_range(0, frontier.size() - 1)
-		var base := frontier[base_idx]
-
-		# เพื่อนบ้าน 4 ทิศ (จะใช้ 8 ทิศก็ได้ถ้าต้องการคลัสเตอร์แน่นขึ้น)
-		var neighbors := [
-			Vector2i(base.x + 1, base.y),
-			Vector2i(base.x - 1, base.y),
-			Vector2i(base.x, base.y + 1),
-			Vector2i(base.x, base.y - 1)
-		]
-
-		# สุ่มเรียงลำดับเล็กน้อย
-		neighbors.shuffle()
-
-		var grew := false
-		for n in neighbors:
-			if added >= total_target:
-				break
-			if not in_bounds(n): 
-				continue
-			if forbidden.has(n): 
-				continue
-			if obstacle_cells.has(n): 
-				continue
-
-			# ความน่าจะเป็นในการ “โต” ต่อเนื่อง เพื่อให้จับกลุ่ม
-			if randf() <= OBSTACLE_CLUSTER_CHANCE or randf() <= 0.18:
-				obstacle_cells[n] = true
-				added += 1
-				frontier.append(n)
-				_spawn_obstacle_sprite(n)
-				grew = true
-
-		# ถ้าจุดนี้ไม่โตต่อ ให้ดึงออกจากแนวหน้าเพื่อลดลูปค้าง
-		if not grew:
-			frontier.remove_at(base_idx)
-<<<<<<< HEAD
-=======
-	var placed: Array[Vector2i] = []
-	var tries := 0
-	var max_try := 2000
-=======
-    var placed: Array[Vector2i] = []
-    var tries := 0
-    var max_try := 2000
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
-
-	# (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-	# ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
-
-<<<<<<< HEAD
-        # บังคับให้กระจาย: ต้องห่างจากที่วางไว้แล้วอย่างน้อย OBSTACLE_MIN_DIST (Manhattan)
-        var ok := true
-        if OBSTACLE_MIN_DIST > 0:
-            for p in placed:
-                var d: int = abs(p.x - c.x) + abs(p.y - c.y)
-                if d < OBSTACLE_MIN_DIST:
-                    ok = false
-                    break
-        if not ok: continue
-
-<<<<<<< Updated upstream
 		obstacle_cells[c] = true
 		placed.append(c)
 		_spawn_obstacle_sprite(c)
 	# จบ — ไม่มี seed/frontier แล้ว
->>>>>>> Stashed changes
-=======
-        obstacle_cells[c] = true
-        placed.append(c)
-        _spawn_obstacle_sprite(c)
-    # จบ — ไม่มี seed/frontier แล้ว
->>>>>>> Stashed changes
 
-    # (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
-    # ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
+	# (ออปชัน) ถ้ากังวลว่าจะอุดทางทั้งหมด สามารถทำ connectivity check แล้ว regenerate ใหม่ได้
+	# ตัวอย่าง: if not _has_any_path_left(): _reset_and_retry()
 
-<<<<<<< Updated upstream
-=======
 # ====== รายการชนิดอาคารทั้งหมด (6 ชนิด) ======
 
 func _all_building_types() -> Array[int]:
-    return [
-        Building.BANK,
-        Building.DARKWEB,
-        Building.CYBER_STATION,
-        Building.LAB,
-        Building.DATA_HUB,
-        Building.ARTANIA,
-    ]
+	return [
+		Building.BANK,
+		Building.DARKWEB,
+		Building.CYBER_STATION,
+		Building.LAB,
+		Building.DATA_HUB,
+		Building.ARTANIA,
+	]
 
 # เลือกเฉพาะช่องว่างที่เดินได้จริง ๆ และยังไม่มีอาคาร
 func _empty_walkable_cells_for_building() -> Array[Vector2i]:
-    var out: Array[Vector2i] = []
-    for y in range(BOARD_SIZE):
-        for x in range(BOARD_SIZE):
-            var c := Vector2i(x, y)
-            if not _is_walkable_cell(c):      # กันสิ่งกีดขวาง
-                continue
-            if _is_occupied(c):               # กันตัวละครยืนอยู่
-                continue
-            if building_at.has(c):            # กันอาคารเดิม (กันถูกเรียกซ้ำ)
-                continue
-            out.append(c)
-    return out
+	var out: Array[Vector2i] = []
+	for y in range(BOARD_SIZE):
+		for x in range(BOARD_SIZE):
+			var c := Vector2i(x, y)
+			if not _is_walkable_cell(c):      # กันสิ่งกีดขวาง
+				continue
+			if _is_occupied(c):               # กันตัวละครยืนอยู่
+				continue
+			if building_at.has(c):            # กันอาคารเดิม (กันถูกเรียกซ้ำ)
+				continue
+			out.append(c)
+	return out
 
 # เรียกจาก _ready() หรือหลัง generate_obstacles() เสร็จ
 func generate_buildings() -> void:
-    if buildings_root == null:
-        push_warning("buildings_root is null")
-        return
+	if buildings_root == null:
+		push_warning("buildings_root is null")
+		return
 
-    # 1) ล้างของเก่าเสมอ
-    for n in buildings_root.get_children():
-        n.queue_free()
-    building_at.clear()
-    building_cd.clear()
-    building_spr.clear()
+	# 1) ล้างของเก่าเสมอ
+	for n in buildings_root.get_children():
+		n.queue_free()
+	building_at.clear()
+	building_cd.clear()
+	building_spr.clear()
 
-    # 2) เตรียมชนิดอาคาร (6 ชนิด) และช่องว่าง
-    var types: Array = _all_building_types()
-    types.shuffle()                               # สุ่มลำดับชนิด
-    var cells: Array[Vector2i] = _empty_walkable_cells_for_building()
-    cells.shuffle()
+	# 2) เตรียมชนิดอาคาร (6 ชนิด) และช่องว่าง
+	var types: Array = _all_building_types()
+	types.shuffle()                               # สุ่มลำดับชนิด
+	var cells: Array[Vector2i] = _empty_walkable_cells_for_building()
+	cells.shuffle()
 
-    # 3) บังคับจำนวน = 6 (หรือเท่าที่มีช่องพอ)
-    var want: int = min(types.size(), cells.size())
+	# 3) บังคับจำนวน = 6 (หรือเท่าที่มีช่องพอ)
+	var want: int = min(types.size(), cells.size())
 
-    # 4) จับคู่ 1:1 → ไม่ซ้ำชนิด + ไม่ซ้อนตำแหน่ง
-    for i in range(want):
-        _spawn_building(types[i], cells[i])
+	# 4) จับคู่ 1:1 → ไม่ซ้ำชนิด + ไม่ซ้อนตำแหน่ง
+	for i in range(want):
+		_spawn_building(types[i], cells[i])
 
-    # Debug เช็ค
-    print("[BUILD] placed=", building_at.size(),
-          " unique types=", types.size(), " want=", want)
+	# Debug เช็ค
+	print("[BUILD] placed=", building_at.size(),
+		  " unique types=", types.size(), " want=", want)
 
 
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 func _collect_forbidden_cells() -> Dictionary:
 	var f := {}
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	# จุดเกิด 4 มุม (ถ้าคุณใช้ตำแหน่งเกิดอื่น ให้แทนค่าใหม่)
-	var spawns := [
-		Vector2i(0, 0),
-		Vector2i(0, BOARD_SIZE - 1),
-		Vector2i(BOARD_SIZE - 1, 0),
-		Vector2i(BOARD_SIZE - 1, BOARD_SIZE - 1),
-	]
-	for s in spawns:
-		f[s] = true
-<<<<<<< HEAD
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	# จุดเกิด 4 มุม (ถ้าคุณใช้ตำแหน่งเกิดอื่น ให้แทนค่าใหม่)
 	var spawns := [
 		Vector2i(0, 0),
@@ -6813,36 +3026,6 @@ func _collect_forbidden_cells() -> Dictionary:
 	]
 	for s in spawns:
 		_mark_safe_zone(f, s, SPAWN_SAFE_RADIUS)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    # จุดเกิด 4 มุม (ถ้าคุณใช้ตำแหน่งเกิดอื่น ให้แทนค่าใหม่)
-    var spawns := [
-        Vector2i(0, 0),
-        Vector2i(0, BOARD_SIZE - 1),
-        Vector2i(BOARD_SIZE - 1, 0),
-        Vector2i(BOARD_SIZE - 1, BOARD_SIZE - 1),
-    ]
-    for s in spawns:
-        _mark_safe_zone(f, s, SPAWN_SAFE_RADIUS)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 	# ตำแหน่งหมากปัจจุบัน (ถ้าคุณมี map piece_cells อยู่แล้ว ให้ใช้มัน)
 	if typeof(pieces_root) != TYPE_NIL:
@@ -6852,31 +3035,6 @@ func _collect_forbidden_cells() -> Dictionary:
 			var c: Vector2i = piece.get_meta("cell")
 			f[c] = true
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> parent of b073401 (sdsdsd)
-	return f
-
-func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-	if obstacle_texture == null:
-		return
-	var s := Sprite2D.new()
-	s.texture = obstacle_texture
-	s.centered = true
-	s.position = cell_to_pos(cell)
-	# ถ้ารูปคุณพอดีช่องอยู่แล้ว ไม่ต้อง scale; ถ้าใหญ่/เล็กเกินไป ปรับที่นี่
-	# s.scale = Vector2(CELL_SIZE / obstacle_texture.get_width(), CELL_SIZE / obstacle_texture.get_height())
-	# เก็บ cell ไว้ที่ meta เผื่อดีบัก
-	s.set_meta("cell", cell)
-	obstacles_root.add_child(s)
-<<<<<<< HEAD
-=======
 	return f
 	
 func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
@@ -6888,63 +3046,6 @@ func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
 			var c := Vector2i(center.x + dx, center.y + dy)
 			if in_bounds(c):
 				f[c] = true
-=======
-	return f
-	
-func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
-	for dy in range(-r, r + 1):
-		for dx in range(-r, r + 1):
-			# ใช้ระยะแมนฮัตตัน (จะได้เป็นรูปกากบาท/เพชร)
-			if abs(dx) + abs(dy) > r:
-				continue
-			var c := Vector2i(center.x + dx, center.y + dy)
-			if in_bounds(c):
-				f[c] = true
-=======
-	return f
-	
-=======
-    return f
-    
->>>>>>> Stashed changes
-func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
-=======
-    return f
-    
-func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
->>>>>>> Stashed changes
-=======
-    return f
-    
-func _mark_safe_zone(f: Dictionary, center: Vector2i, r: int) -> void:
->>>>>>> Stashed changes
-    for dy in range(-r, r + 1):
-        for dx in range(-r, r + 1):
-            # ใช้ระยะแมนฮัตตัน (จะได้เป็นรูปกากบาท/เพชร)
-            if abs(dx) + abs(dy) > r:
-                continue
-            var c := Vector2i(center.x + dx, center.y + dy)
-            if in_bounds(c):
-                f[c] = true
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-
-func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-<<<<<<< Updated upstream
-	var s := Sprite2D.new()
-	s.texture = obstacle_texture
-	s.centered = true
-	s.global_position = _cell_center(cell)
-	obstacles_root.add_child(s)
->>>>>>> Stashed changes
-=======
-    var s := Sprite2D.new()
-    s.texture = obstacle_texture
-    s.centered = true
-    s.global_position = _cell_center(cell)
-    obstacles_root.add_child(s)
->>>>>>> Stashed changes
 
 
 func _spawn_obstacle_sprite(cell: Vector2i) -> void:
@@ -6953,198 +3054,140 @@ func _spawn_obstacle_sprite(cell: Vector2i) -> void:
 	s.centered = true
 	s.global_position = _cell_center(cell)
 	obstacles_root.add_child(s)
->>>>>>> Stashed changes
-=======
-=======
 
 
-func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-    var s := Sprite2D.new()
-    s.texture = obstacle_texture
-    s.centered = true
-    s.global_position = _cell_center(cell)
-    obstacles_root.add_child(s)
->>>>>>> Stashed changes
-=======
->>>>>>> parent of b073401 (sdsdsd)
 
 
-func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-    var s := Sprite2D.new()
-    s.texture = obstacle_texture
-    s.centered = true
-    s.global_position = _cell_center(cell)
-    obstacles_root.add_child(s)
->>>>>>> Stashed changes
-
-
-func _spawn_obstacle_sprite(cell: Vector2i) -> void:
-	var s := Sprite2D.new()
-	s.texture = obstacle_texture
-	s.centered = true
-	s.global_position = _cell_center(cell)
-	obstacles_root.add_child(s)
->>>>>>> Stashed changes
 
 func _clear_obstacles_visual() -> void:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 	for c in obstacles_root.get_children():
 		c.queue_free()
 	obstacle_cells.clear()
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-	for c in obstacles_root.get_children():
-		c.queue_free()
-	obstacle_cells.clear()
-=======
-    for c in obstacles_root.get_children():
-        c.queue_free()
-    obstacle_cells.clear()
->>>>>>> Stashed changes
-=======
-    for c in obstacles_root.get_children():
-        c.queue_free()
-    obstacle_cells.clear()
->>>>>>> Stashed changes
-=======
-    for c in obstacles_root.get_children():
-        c.queue_free()
-    obstacle_cells.clear()
->>>>>>> Stashed changes
 
 func _is_walkable_cell(c: Vector2i) -> bool:
-    if not in_bounds(c): return false
-    if obstacle_cells.has(c): return false
-    # ถ้ามีเช็คว่ามีหมากยืนอยู่ ให้คงไว้ที่นี่
-    # if _is_occupied_by_piece(c): return false
-    return true
+	if not in_bounds(c): return false
+	if obstacle_cells.has(c): return false
+	# ถ้ามีเช็คว่ามีหมากยืนอยู่ ให้คงไว้ที่นี่
+	# if _is_occupied_by_piece(c): return false
+	return true
 
 
 # หาเซลล์ที่เดินถึงได้จาก start ภายในจำนวนก้าว max_steps
 # - จะไม่รวม start เองในผลลัพธ์
 # - บันทึก parent_map สำหรับสร้าง path ย้อนกลับด้วย _build_path(parent_map, goal)
 func compute_reachable_from(start: Vector2i, max_steps: int) -> Array[Vector2i]:
-    var reachable: Array[Vector2i] = []
-    parent_map.clear()                       # ใช้ตัวแปร global ของคุณ (Dictionary)
-    var dist: Dictionary = {}                # key: Vector2i, val: int (ระยะทางจาก start)
-    var q: Array[Vector2i] = []
+	var reachable: Array[Vector2i] = []
+	parent_map.clear()                       # ใช้ตัวแปร global ของคุณ (Dictionary)
+	var dist: Dictionary = {}                # key: Vector2i, val: int (ระยะทางจาก start)
+	var q: Array[Vector2i] = []
 
-    # เริ่มจากจุดตั้งต้น
-    dist[start] = 0
-    q.append(start)
+	# เริ่มจากจุดตั้งต้น
+	dist[start] = 0
+	q.append(start)
 
-    while not q.is_empty():
-        var cur: Vector2i = q.pop_front()
-        var dcur: int = dist[cur]
+	while not q.is_empty():
+		var cur: Vector2i = q.pop_front()
+		var dcur: int = dist[cur]
 
-        # หมดก้าวแล้วก็ไม่ขยายต่อ
-        if dcur >= max_steps:
-            continue
+		# หมดก้าวแล้วก็ไม่ขยายต่อ
+		if dcur >= max_steps:
+			continue
 
-        for n in _get_neighbors(cur):        # _get_neighbors() ใช้ _is_walkable_cell() อยู่แล้ว
-            if dist.has(n):
-                continue
-            # จำกัดก้าว
-            dist[n] = dcur + 1
-            parent_map[n] = cur              # บันทึกพ่อของโหนดเพื่อสร้างเส้นทางทีหลัง
-            reachable.append(n)
-            q.append(n)
+		for n in _get_neighbors(cur):        # _get_neighbors() ใช้ _is_walkable_cell() อยู่แล้ว
+			if dist.has(n):
+				continue
+			# จำกัดก้าว
+			dist[n] = dcur + 1
+			parent_map[n] = cur              # บันทึกพ่อของโหนดเพื่อสร้างเส้นทางทีหลัง
+			reachable.append(n)
+			q.append(n)
 
-    return reachable
+	return reachable
 
 
 func _get_neighbors(c: Vector2i) -> Array[Vector2i]:
-    var out: Array[Vector2i] = []
-    var dirs: Array[Vector2i] = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
-    for d in dirs:
-        var n: Vector2i = c + d
-        if _is_walkable_cell(n):
-            out.append(n)
-    return out
+	var out: Array[Vector2i] = []
+	var dirs: Array[Vector2i] = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+	for d in dirs:
+		var n: Vector2i = c + d
+		if _is_walkable_cell(n):
+			out.append(n)
+	return out
 
 
 func is_obstacle_cell(c: Vector2i) -> bool:
-    return obstacle_cells.has(c)
-    
+	return obstacle_cells.has(c)
+	
 func _filter_out_obstacles(cells: Array[Vector2i]) -> Array[Vector2i]:
-    var out: Array[Vector2i] = []
-    for c in cells:
-        if not obstacle_cells.has(c):
-            out.append(c)
-    return out
+	var out: Array[Vector2i] = []
+	for c in cells:
+		if not obstacle_cells.has(c):
+			out.append(c)
+	return out
 
 func _highlight_walkable(cells: Array[Vector2i]) -> void:
-    for c in cells:
-        if obstacle_cells.has(c):
-            continue
+	for c in cells:
+		if obstacle_cells.has(c):
+			continue
 
 func _on_board_clicked(world_pos: Vector2) -> void:
-    var target: Vector2i = _cell_from_global(world_pos)
-    if obstacle_cells.has(target):
-        return  # ไม่ต้องเดิน/ไม่ต้องไฮไลต์ต่อ
-    # ... โค้ดตรวจว่าอยู่ใน reachable set แล้วค่อยสั่งเดิน ...
+	var target: Vector2i = _cell_from_global(world_pos)
+	if obstacle_cells.has(target):
+		return  # ไม่ต้องเดิน/ไม่ต้องไฮไลต์ต่อ
+	# ... โค้ดตรวจว่าอยู่ใน reachable set แล้วค่อยสั่งเดิน ...
 
 func _show_reachable_cells(selected_cell: Vector2i, steps: int) -> void:
-    var reachable: Array[Vector2i] = compute_reachable_from(selected_cell, steps)
-    reachable = _filter_out_obstacles(reachable)   # ✅ ทำตรงนี้
-    _highlight_walkable(reachable)                 # ฟังก์ชันวาดจุดเดิมของคุณ
+	var reachable: Array[Vector2i] = compute_reachable_from(selected_cell, steps)
+	reachable = _filter_out_obstacles(reachable)   # ✅ ทำตรงนี้
+	_highlight_walkable(reachable)                 # ฟังก์ชันวาดจุดเดิมของคุณ
 
 func _cell_from_global(world_pos: Vector2) -> Vector2i:
-    # หา offset มุมซ้ายบนของกระดาน
-    var tl := _board_top_left   # ถ้าคุณใช้ฟังก์ชัน _calc_board_geom() อยู่แล้ว
-    # คำนวณตำแหน่งในกริด
-    var local := world_pos - global_position - tl
-    var cx := int(floor(local.x / CELL_SIZE))
-    var cy := int(floor(local.y / CELL_SIZE))
-    return Vector2i(cx, cy)
+	# หา offset มุมซ้ายบนของกระดาน
+	var tl := _board_top_left   # ถ้าคุณใช้ฟังก์ชัน _calc_board_geom() อยู่แล้ว
+	# คำนวณตำแหน่งในกริด
+	var local := world_pos - global_position - tl
+	var cx := int(floor(local.x / CELL_SIZE))
+	var cy := int(floor(local.y / CELL_SIZE))
+	return Vector2i(cx, cy)
 
 func _card_bg_for_type(t: int) -> Texture2D:
-    match t:
-        CardType.ATTACK:  return card_bg_attack
-        CardType.DEFENSE: return card_bg_defense
-        CardType.MYSTERY: return card_bg_mystery
-        _:                return card_bg_mystery
+	match t:
+		CardType.ATTACK:  return card_bg_attack
+		CardType.DEFENSE: return card_bg_defense
+		CardType.MYSTERY: return card_bg_mystery
+		_:                return card_bg_mystery
 
 func _stylebox_from_tex(tex: Texture2D) -> StyleBoxTexture:
-    var sb := StyleBoxTexture.new()
-    sb.texture = tex
-    # ถ้ารูปเป็น 9-patch ให้ตั้ง margin ต่อไปนี้ได้
-    sb.content_margin_left   = 8
-    sb.content_margin_right  = 8
-    sb.content_margin_top    = 6
-    sb.content_margin_bottom = 6
-    return sb
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	# ถ้ารูปเป็น 9-patch ให้ตั้ง margin ต่อไปนี้ได้
+	sb.content_margin_left   = 8
+	sb.content_margin_right  = 8
+	sb.content_margin_top    = 6
+	sb.content_margin_bottom = 6
+	return sb
 
 func _apply_card_skin(btn: Button, info: Dictionary) -> void:
-    var tex := _card_bg_for_type(int(info.get("type", CardType.MYSTERY)))
-    if tex:
-        var sb := _stylebox_from_tex(tex)
-        # ใช้สไตล์เดียวกันในทุก state เพื่อให้ภาพคงที่
-        btn.add_theme_stylebox_override("normal",  sb)
-        btn.add_theme_stylebox_override("hover",   sb)
-        btn.add_theme_stylebox_override("pressed", sb)
-        btn.add_theme_stylebox_override("disabled", sb)
+	var tex := _card_bg_for_type(int(info.get("type", CardType.MYSTERY)))
+	if tex:
+		var sb := _stylebox_from_tex(tex)
+		# ใช้สไตล์เดียวกันในทุก state เพื่อให้ภาพคงที่
+		btn.add_theme_stylebox_override("normal",  sb)
+		btn.add_theme_stylebox_override("hover",   sb)
+		btn.add_theme_stylebox_override("pressed", sb)
+		btn.add_theme_stylebox_override("disabled", sb)
 
-    # อ่านง่ายบนพื้นหลัง: ทำตัวหนังสือขาว + มีเส้นขอบดำ
-    btn.add_theme_color_override("font_color", Color(1,1,1,1))
-    btn.add_theme_color_override("font_hover_color", Color(1,1,1,1))
-    btn.add_theme_color_override("font_pressed_color", Color(1,1,1,1))
-    btn.add_theme_color_override("font_focus_color", Color(1,1,1,1))
-    btn.add_theme_color_override("font_outline_color", Color(0,0,0,0.85))
-    btn.add_theme_constant_override("outline_size", 2)
+	# อ่านง่ายบนพื้นหลัง: ทำตัวหนังสือขาว + มีเส้นขอบดำ
+	btn.add_theme_color_override("font_color", Color(1,1,1,1))
+	btn.add_theme_color_override("font_hover_color", Color(1,1,1,1))
+	btn.add_theme_color_override("font_pressed_color", Color(1,1,1,1))
+	btn.add_theme_color_override("font_focus_color", Color(1,1,1,1))
+	btn.add_theme_color_override("font_outline_color", Color(0,0,0,0.85))
+	btn.add_theme_constant_override("outline_size", 2)
 
-    # จัดกลาง + ระยะขอบในปุ่ม
-    btn.add_theme_constant_override("h_alignment", HORIZONTAL_ALIGNMENT_CENTER)
-    btn.add_theme_constant_override("v_alignment", VERTICAL_ALIGNMENT_CENTER)
+	# จัดกลาง + ระยะขอบในปุ่ม
+	btn.add_theme_constant_override("h_alignment", HORIZONTAL_ALIGNMENT_CENTER)
+	btn.add_theme_constant_override("v_alignment", VERTICAL_ALIGNMENT_CENTER)
 
 # ===== CONFIG บนสุดของ board.gd =====
 @export var CARD_SIZE := Vector2i(140, 260)   # กำหนดเองได้
@@ -7152,36 +3195,36 @@ func _apply_card_skin(btn: Button, info: Dictionary) -> void:
 
 # เรียกใน _refresh_card_bar_ui() ตอนวน set ปุ่มแต่ละช่อง
 func _tex_for_card(info: Dictionary) -> Texture2D:
-    var t := int(info.get("type", CardType.ATTACK))
-    match t:
-        CardType.ATTACK:  return card_tex_attack
-        CardType.DEFENSE: return card_tex_defense
-        CardType.MYSTERY: return card_tex_mystery
-        _:                return card_tex_attack
+	var t := int(info.get("type", CardType.ATTACK))
+	match t:
+		CardType.ATTACK:  return card_tex_attack
+		CardType.DEFENSE: return card_tex_defense
+		CardType.MYSTERY: return card_tex_mystery
+		_:                return card_tex_attack
 
 func _apply_card_box_size(btn: Button) -> void:
-    btn.custom_minimum_size = CARD_SIZE
-    btn.size = CARD_SIZE
-    btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    btn.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
+	btn.custom_minimum_size = CARD_SIZE
+	btn.size = CARD_SIZE
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
 
 func _fit_button_text(btn: Button, text: String) -> void:
-    var font := btn.get_theme_font("font")
-    if font == null: font = ThemeDB.fallback_font
+	var font := btn.get_theme_font("font")
+	if font == null: font = ThemeDB.fallback_font
 
-    var avail := btn.size - CARD_TEXT_PADDING * 2.0
-    var size := 16
-    while size > 10:
-        var m := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, avail.x, size)
-        if m.x <= avail.x and m.y <= avail.y:
-            break
-        size -= 1
-    btn.add_theme_font_size_override("font_size", size)
-    btn.text = text
+	var avail := btn.size - CARD_TEXT_PADDING * 2.0
+	var size := 16
+	while size > 10:
+		var m := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, avail.x, size)
+		if m.x <= avail.x and m.y <= avail.y:
+			break
+		size -= 1
+	btn.add_theme_font_size_override("font_size", size)
+	btn.text = text
 
-    # กันล้น (ถ้ายังล้นจริง ๆ)
-    btn.clip_text = true
-    btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# กันล้น (ถ้ายังล้นจริง ๆ)
+	btn.clip_text = true
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 # ===== Board.gd (โซน CONFIG) =====
 @export var card_tex_attack: Texture2D
@@ -7199,431 +3242,407 @@ var building_spr: Dictionary = {}       # Vector2i -> Sprite2D
 var _pending_building_cell_by_piece: Dictionary[Sprite2D, Vector2i] = {}
 
 func _tex_for_building(t: int) -> Texture2D:
-    match t:
-        Building.BANK:           return tex_bank
-        Building.DARKWEB:        return tex_darkweb
-        Building.CYBER_STATION:  return tex_cyber_station
-        Building.LAB:            return tex_lab
-        Building.DATA_HUB:       return tex_data_hub
-        Building.ARTANIA:        return tex_artania
-        _:                       return tex_bank
+	match t:
+		Building.BANK:           return tex_bank
+		Building.DARKWEB:        return tex_darkweb
+		Building.CYBER_STATION:  return tex_cyber_station
+		Building.LAB:            return tex_lab
+		Building.DATA_HUB:       return tex_data_hub
+		Building.ARTANIA:        return tex_artania
+		_:                       return tex_bank
 
 func _update_building_visual(cell: Vector2i) -> void:
-    var spr := building_spr.get(cell) as Sprite2D
-    if spr == null: return
-    var cd := _get_building_cd(cell)
-    var m: Color = spr.modulate
-    if cd > 0:
-        m.a = 0.40   # อาคารติดคูลดาวน์ → จางลง
-    else:
-        m.a = 1.0    # อาคารพร้อมใช้งาน → ชัดเต็ม
-    spr.modulate = m
+	var spr := building_spr.get(cell) as Sprite2D
+	if spr == null: return
+	var cd := _get_building_cd(cell)
+	var m: Color = spr.modulate
+	if cd > 0:
+		m.a = 0.40   # อาคารติดคูลดาวน์ → จางลง
+	else:
+		m.a = 1.0    # อาคารพร้อมใช้งาน → ชัดเต็ม
+	spr.modulate = m
 
 
 
 func _trigger_building_if_ready(p: Sprite2D, cell: Vector2i) -> void:
-    if p == null: return
-    if not building_at.has(cell): return
-    if int(building_cd.get(cell, 0)) > 0: return
+	if p == null: return
+	if not building_at.has(cell): return
+	if int(building_cd.get(cell, 0)) > 0: return
 
-    var t := int(building_at[cell])
-    var cd := int(BUILDING_COOLDOWNS.get(t, 0))
+	var t := int(building_at[cell])
+	var cd := int(BUILDING_COOLDOWNS.get(t, 0))
 
-    # ให้ผลลัพธ์ตามชนิด
-    match t:
-        Building.BANK:
-            add_money(p, +300)
-            _notify_center("%s ได้รับ +300 จากเซิร์ฟเวอร์ธนาคาร" % p.name)
-            ChatBus.log_event("bonus", "%s รับเงิน +300 จาก Bank", [p.name])
+	# ให้ผลลัพธ์ตามชนิด
+	match t:
+		Building.BANK:
+			add_money(p, +300)
+			_notify_center("%s ได้รับ +300 จากเซิร์ฟเวอร์ธนาคาร" % p.name)
+			ChatBus.log_event("bonus", "%s รับเงิน +300 จาก Bank", [p.name])
 
-        Building.DARKWEB:
-            _give_darkweb_cards(p, 0)    # ✅ จั่วเฉพาะ p ผู้ที่เหยียบ
-            _set_building_cd(cell, 6)
-            _notify_center("%s ได้รับไพ่เพิ่ม +2 จากดาร์คเว็บ" % p.name)
-            ChatBus.log_event("bonus", "%s จั่วเพิ่ม +2 (Dark Web)", [p.name])
+		Building.DARKWEB:
+			_give_darkweb_cards(p, 0)    # ✅ จั่วเฉพาะ p ผู้ที่เหยียบ
+			_set_building_cd(cell, 6)
+			_notify_center("%s ได้รับไพ่เพิ่ม +2 จากดาร์คเว็บ" % p.name)
+			ChatBus.log_event("bonus", "%s จั่วเพิ่ม +2 (Dark Web)", [p.name])
 
-        Building.CYBER_STATION:
-            add_shield(p, 200)
-            SFX.play_world("shield_up", pieces)
-            _notify_center("%s ได้โล่ +200 จากสถานีไซเบอร์" % p.name)
-            ChatBus.log_event("buff", "%s โล่ +200 (Cyber Station)", [p.name])
+		Building.CYBER_STATION:
+			add_shield(p, 200)
+			SFX.play_world("shield_up", pieces)
+			_notify_center("%s ได้โล่ +200 จากสถานีไซเบอร์" % p.name)
+			ChatBus.log_event("buff", "%s โล่ +200 (Cyber Station)", [p.name])
 
-        Building.LAB:
-            _give_specific_card(p, "root_access_heist", "Root Access Heist")
-            _notify_center("%s ได้ไพ่ Root Access Heist +1 (ห้องปฏิบัติการ)" % p.name)
-            ChatBus.log_event("bonus", "%s ได้การ์ด RAH +1 (Lab)", [p.name])
+		Building.LAB:
+			_give_specific_card(p, "root_access_heist", "Root Access Heist")
+			_notify_center("%s ได้ไพ่ Root Access Heist +1 (ห้องปฏิบัติการ)" % p.name)
+			ChatBus.log_event("bonus", "%s ได้การ์ด RAH +1 (Lab)", [p.name])
 
-        Building.DATA_HUB:
-            add_money(p, +150)
-            _notify_center("%s ได้รับ +150 จากจุดส่งข้อมูล" % p.name)
-            ChatBus.log_event("bonus", "%s รับเงิน +150 (Data Hub)", [p.name])
+		Building.DATA_HUB:
+			add_money(p, +150)
+			_notify_center("%s ได้รับ +150 จากจุดส่งข้อมูล" % p.name)
+			ChatBus.log_event("bonus", "%s รับเงิน +150 (Data Hub)", [p.name])
 
-        Building.ARTANIA:
-            add_money(p, +200)
-            add_shield(p, 50)
-            _notify_center("%s ได้ +200 เงิน และ +50 โล่ (บริษัทอาทาเนีย)" % p.name)
-            ChatBus.log_event("bonus", "%s +200 เงิน +50 โล่ (Artania)", [p.name])
+		Building.ARTANIA:
+			add_money(p, +200)
+			add_shield(p, 50)
+			_notify_center("%s ได้ +200 เงิน และ +50 โล่ (บริษัทอาทาเนีย)" % p.name)
+			ChatBus.log_event("bonus", "%s +200 เงิน +50 โล่ (Artania)", [p.name])
 
-    # เข้าสู่คูลดาวน์
-    building_cd[cell] = cd
-    _update_building_visual(cell)
-    _update_money_ui()
-    if card_bar and active_piece == p:
-        _refresh_card_bar_ui()
+	# เข้าสู่คูลดาวน์
+	building_cd[cell] = cd
+	_update_building_visual(cell)
+	_update_money_ui()
+	if card_bar and active_piece == p:
+		_refresh_card_bar_ui()
 
 func _give_specific_card(p: Sprite2D, id_key: String, name_fallback: String) -> void:
-    if p == null: return
-    _ensure_hand_slot(p)
+	if p == null: return
+	_ensure_hand_slot(p)
 
-    if hand_by_piece[p].size() >= MAX_HAND:
-        _notify_center("มือเต็ม (ไม่ได้รับการ์ดเพิ่ม)")
-        return
+	if hand_by_piece[p].size() >= MAX_HAND:
+		_notify_center("มือเต็ม (ไม่ได้รับการ์ดเพิ่ม)")
+		return
 
-    var c: Resource = null
-    if card_db:
-        # หาจาก id ก่อน (ถ้าการ์ดคุณมี field id)
-        for r in card_db.cards:
-            if r is CardData and String(r.id).strip_edges().to_lower() == id_key:
-                c = r; break
-        # ถ้าไม่เจอ id ลองด้วยชื่อ
-        if c == null:
-            var key := name_fallback.strip_edges().to_lower()
-            for r in card_db.cards:
-                if r is CardData and String(r.name).strip_edges().to_lower() == key:
-                    c = r; break
-    if c == null:
-        # fallback: ดึงการ์ดแบบ dictionary (ถ้าไม่มีใน DB จริง ๆ)
-        c = CardData.new()
-        c.name = name_fallback
-        c.effect = "steal_50"   # ให้พฤติกรรมใกล้เคียง RAH
-        c.desc = "จากอาคาร"
+	var c: Resource = null
+	if card_db:
+		# หาจาก id ก่อน (ถ้าการ์ดคุณมี field id)
+		for r in card_db.cards:
+			if r is CardData and String(r.id).strip_edges().to_lower() == id_key:
+				c = r; break
+		# ถ้าไม่เจอ id ลองด้วยชื่อ
+		if c == null:
+			var key := name_fallback.strip_edges().to_lower()
+			for r in card_db.cards:
+				if r is CardData and String(r.name).strip_edges().to_lower() == key:
+					c = r; break
+	if c == null:
+		# fallback: ดึงการ์ดแบบ dictionary (ถ้าไม่มีใน DB จริง ๆ)
+		c = CardData.new()
+		c.name = name_fallback
+		c.effect = "steal_50"   # ให้พฤติกรรมใกล้เคียง RAH
+		c.desc = "จากอาคาร"
 
-    hand_by_piece[p].append(c)
+	hand_by_piece[p].append(c)
 
 func _tick_building_cooldowns() -> void:
-    for cell in building_cd.keys():
-        var v := int(building_cd[cell])
-        if v > 0:
-            building_cd[cell] = v - 1
-            if building_cd[cell] <= 0:
-                building_cd[cell] = 0
-                _update_building_visual(cell)
-                # แจ้งเบา ๆ ว่ากลับมาใช้ได้ (ถ้าชอบ)
-                # _notify_right("อาคารพร้อมใช้งานอีกครั้งที่ %s" % str(cell))
+	for cell in building_cd.keys():
+		var v := int(building_cd[cell])
+		if v > 0:
+			building_cd[cell] = v - 1
+			if building_cd[cell] <= 0:
+				building_cd[cell] = 0
+				_update_building_visual(cell)
+				# แจ้งเบา ๆ ว่ากลับมาใช้ได้ (ถ้าชอบ)
+				# _notify_right("อาคารพร้อมใช้งานอีกครั้งที่ %s" % str(cell))
 func generate_buildings_fair(want: int) -> void:
-    if buildings_root == null: return
+	if buildings_root == null: return
 
-    for c in buildings_root.get_children():
-        c.queue_free()
-    building_at.clear()
-    building_cd.clear()
-    building_spr.clear()
+	for c in buildings_root.get_children():
+		c.queue_free()
+	building_at.clear()
+	building_cd.clear()
+	building_spr.clear()
 
-    var candidates : Array[Vector2i] = _all_walkable_empty_cells()
-    candidates = candidates.filter(func(c): return not building_at.has(c))
-    candidates.shuffle()
+	var candidates : Array[Vector2i] = _all_walkable_empty_cells()
+	candidates = candidates.filter(func(c): return not building_at.has(c))
+	candidates.shuffle()
 
-    var base_types := [
-        Building.BANK,
-        Building.DARKWEB,
-        Building.CYBER_STATION,
-        Building.LAB,
-        Building.DATA_HUB,
-        Building.ARTANIA,
-    ]
+	var base_types := [
+		Building.BANK,
+		Building.DARKWEB,
+		Building.CYBER_STATION,
+		Building.LAB,
+		Building.DATA_HUB,
+		Building.ARTANIA,
+	]
 
-    var bag : Array = []
-    var placed := 0
-    var idx := 0
+	var bag : Array = []
+	var placed := 0
+	var idx := 0
 
-    while placed < want and idx < candidates.size():
-        if bag.is_empty():
-            bag = base_types.duplicate()
-            bag.shuffle()
-        var t = bag.pop_back()
-        var cell := candidates[idx]
-        _spawn_building(t, cell)
-        placed += 1
-        idx += 1
+	while placed < want and idx < candidates.size():
+		if bag.is_empty():
+			bag = base_types.duplicate()
+			bag.shuffle()
+		var t = bag.pop_back()
+		var cell := candidates[idx]
+		_spawn_building(t, cell)
+		placed += 1
+		idx += 1
 
 func _spawn_building(t: int, cell: Vector2i) -> void:
-    # กันซ้อน cell (เผื่อถูกเรียกซ้ำ)
-    if building_at.has(cell):
-        return
+	# กันซ้อน cell (เผื่อถูกเรียกซ้ำ)
+	if building_at.has(cell):
+		return
 
-    var spr := Sprite2D.new()
-    spr.texture = _tex_for_building(t)  # เขียนฟังก์ชัน map ชนิด -> texture แล้ว
-    spr.centered = true
-    spr.global_position = _cell_center(cell)
-    buildings_root.add_child(spr)
+	var spr := Sprite2D.new()
+	spr.texture = _tex_for_building(t)  # เขียนฟังก์ชัน map ชนิด -> texture แล้ว
+	spr.centered = true
+	spr.global_position = _cell_center(cell)
+	buildings_root.add_child(spr)
 
-    building_at[cell] = t
-    building_cd[cell] = 0
-    building_spr[cell] = spr
+	building_at[cell] = t
+	building_cd[cell] = 0
+	building_spr[cell] = spr
 
 
 func generate_buildings_unique_once() -> void:
-    if buildings_root == null:
-        return
+	if buildings_root == null:
+		return
 
-    # เคลียร์ของเก่า
-    for c in buildings_root.get_children():
-        c.queue_free()
-    building_at.clear()
-    building_cd.clear()
-    building_spr.clear()
+	# เคลียร์ของเก่า
+	for c in buildings_root.get_children():
+		c.queue_free()
+	building_at.clear()
+	building_cd.clear()
+	building_spr.clear()
 
-    # ชนิดอาคารครบชุด (อย่างละ 1)
-    var types := [
-        Building.BANK,
-        Building.DARKWEB,
-        Building.CYBER_STATION,
-        Building.LAB,
-        Building.DATA_HUB,
-        Building.ARTANIA,
-    ]
-    types.shuffle()
+	# ชนิดอาคารครบชุด (อย่างละ 1)
+	var types := [
+		Building.BANK,
+		Building.DARKWEB,
+		Building.CYBER_STATION,
+		Building.LAB,
+		Building.DATA_HUB,
+		Building.ARTANIA,
+	]
+	types.shuffle()
 
-    # หาเซลล์ว่าง/เดินได้ ไม่ชนสิ่งกีดขวาง/ตัวละคร/อาคารเดิม
-    var candidates : Array[Vector2i] = _all_walkable_empty_cells()
-    # ตัดเซลล์ที่มีอาคารอยู่แล้ว (กันพลาด)
-    candidates = candidates.filter(func(c): return not building_at.has(c))
-    candidates.shuffle()
+	# หาเซลล์ว่าง/เดินได้ ไม่ชนสิ่งกีดขวาง/ตัวละคร/อาคารเดิม
+	var candidates : Array[Vector2i] = _all_walkable_empty_cells()
+	# ตัดเซลล์ที่มีอาคารอยู่แล้ว (กันพลาด)
+	candidates = candidates.filter(func(c): return not building_at.has(c))
+	candidates.shuffle()
 
-    if candidates.size() < types.size():
-        push_warning("มีเซลล์ว่างไม่พอสำหรับอาคารทั้งหมด")
-        return
+	if candidates.size() < types.size():
+		push_warning("มีเซลล์ว่างไม่พอสำหรับอาคารทั้งหมด")
+		return
 
-    # จับคู่ 1:1 → ไม่มีซ้ำชนิดและไม่ซ้อนตำแหน่ง
-    for i in types.size():
-        var cell := candidates[i]
-        _spawn_building(types[i], cell)
+	# จับคู่ 1:1 → ไม่มีซ้ำชนิดและไม่ซ้อนตำแหน่ง
+	for i in types.size():
+		var cell := candidates[i]
+		_spawn_building(types[i], cell)
 
 # แนะนำวางใกล้ ๆ ฟังก์ชันไพ่ (แถว ๆ draw_card_for_piece)
 func _give_darkweb_cards(p: Sprite2D, count: int) -> void:
-    if p == null: return
-    _ensure_hand_slot(p)
+	if p == null: return
+	_ensure_hand_slot(p)
 
-    var hand: Array = hand_by_piece.get(p, [])
-    var target: int = min(count, MAX_HAND - hand.size())
-    if target <= 0:
-        return
+	var hand: Array = hand_by_piece.get(p, [])
+	var target: int = min(count, MAX_HAND - hand.size())
+	if target <= 0:
+		return
 
-    var drawn := 0
-    var safety := 30                      # กันลูปค้าง
+	var drawn := 0
+	var safety := 30                      # กันลูปค้าง
 
-    while drawn < target and safety > 0:
-        safety -= 1
+	while drawn < target and safety > 0:
+		safety -= 1
 
-        # ใช้อันที่ “ไม่น่าจะได้ null” ถ้ามี
-        var card: Resource = _draw_random_card_excluding_system_failure()
-        if card == null:
-            continue                      # ข้ามของเสีย
+		# ใช้อันที่ “ไม่น่าจะได้ null” ถ้ามี
+		var card: Resource = _draw_random_card_excluding_system_failure()
+		if card == null:
+			continue                      # ข้ามของเสีย
 
-        # ถ้าเป็น on-draw (เช่น System Failure) แล้วถูกใช้ทันที ให้ข้ามไม่ใส่มือ
-        if _on_card_drawn(p, card):
-            continue
+		# ถ้าเป็น on-draw (เช่น System Failure) แล้วถูกใช้ทันที ให้ข้ามไม่ใส่มือ
+		if _on_card_drawn(p, card):
+			continue
 
-        # ✅ ปลอดภัยก่อน push: ต้องเป็น CardData หรือ Dictionary ที่มีชื่อ
-        if not (card is CardData):
+		# ✅ ปลอดภัยก่อน push: ต้องเป็น CardData หรือ Dictionary ที่มีชื่อ
+		if not (card is CardData):
 
-            continue
+			continue
 
-        hand.append(card)
-        drawn += 1
-    hand_by_piece[p] = hand
+		hand.append(card)
+		drawn += 1
+	hand_by_piece[p] = hand
 
-    # อัปเดต UI เฉพาะถ้าเป็นผู้เล่นที่กำลังแสดงมืออยู่
-    if p == active_piece:
-        _refresh_card_bar_ui()
+	# อัปเดต UI เฉพาะถ้าเป็นผู้เล่นที่กำลังแสดงมืออยู่
+	if p == active_piece:
+		_refresh_card_bar_ui()
 
 func _sanitize_hand(p: Sprite2D) -> void:
-    if p == null: return
-    var hand: Array = hand_by_piece.get(p, [])
-    var clean: Array = []
-    for c in hand:
-        if c is CardData:
-            clean.append(c)
-        elif c is Dictionary and c.has("name"):
-            clean.append(c)
-    hand_by_piece[p] = clean
+	if p == null: return
+	var hand: Array = hand_by_piece.get(p, [])
+	var clean: Array = []
+	for c in hand:
+		if c is CardData:
+			clean.append(c)
+		elif c is Dictionary and c.has("name"):
+			clean.append(c)
+	hand_by_piece[p] = clean
 
 
 func _set_building_cd(cell: Vector2i, turns: int) -> void:
-    building_cd[cell] = max(0, turns)
-    _update_building_visual(cell)   # ทำให้ไอคอนจาง/กลับมาปกติ
+	building_cd[cell] = max(0, turns)
+	_update_building_visual(cell)   # ทำให้ไอคอนจาง/กลับมาปกติ
 
 func _get_building_cd(cell: Vector2i) -> int:
-    return int(building_cd.get(cell, 0))
+	return int(building_cd.get(cell, 0))
 
 func _decay_building_cd_one_round() -> void:
-    var to_update: Array[Vector2i] = []
-    for c in building_cd.keys():
-        var left := int(building_cd[c]) - 1
-        if left <= 0:
-            building_cd.erase(c)
-        else:
-            building_cd[c] = left
-        to_update.append(c)
-    for c in to_update:
-        _update_building_visual(c)
+	var to_update: Array[Vector2i] = []
+	for c in building_cd.keys():
+		var left := int(building_cd[c]) - 1
+		if left <= 0:
+			building_cd.erase(c)
+		else:
+			building_cd[c] = left
+		to_update.append(c)
+	for c in to_update:
+		_update_building_visual(c)
 
 # --- FX: แวบแดง ---
 func _flash_red(target: CanvasItem, times: int = 2, one: float = 0.06) -> void:
-    var t := create_tween()
-    for i in range(times):
-        t.tween_property(target, "self_modulate", Color(1, 0.4, 0.4, 1), one)
-        t.tween_property(target, "self_modulate", Color(1, 1, 1, 1), one)
+	var t := create_tween()
+	for i in range(times):
+		t.tween_property(target, "self_modulate", Color(1, 0.4, 0.4, 1), one)
+		t.tween_property(target, "self_modulate", Color(1, 1, 1, 1), one)
 
 # --- FX: เขย่า (ปลอดภัยกับการเดิน) ---
 func _shake_any(target: Node, amplitude: float = 8.0, duration: float = 0.25, vibrato: int = 12) -> void:
-    var step_time: float = duration / float(max(1, vibrato))
-    var amp: float = amplitude
+	var step_time: float = duration / float(max(1, vibrato))
+	var amp: float = amplitude
 
-    if target is Sprite2D:
-        var s: Sprite2D = target
-        var base_off := s.offset
-        var tw := create_tween()
-        for i in range(vibrato):
-            var dir := Vector2(randf() * 2.0 - 1.0, randf() * 2.0 - 1.0).normalized()
-            tw.tween_property(s, "offset", base_off + dir * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-            amp *= 0.85
-        tw.tween_property(s, "offset", base_off, 0.06)
-    elif target is Node2D:
-        var n: Node2D = target
-        var base_pos := n.position
-        var tw2 := create_tween()
-        for i in range(vibrato):
-            var dir2 := Vector2(randf()*2-1, randf()*2-1).normalized()
-            tw2.tween_property(n, "position", base_pos + dir2 * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-            amp *= 0.85
-        tw2.tween_property(n, "position", base_pos, 0.06)
+	if target is Sprite2D:
+		var s: Sprite2D = target
+		var base_off := s.offset
+		var tw := create_tween()
+		for i in range(vibrato):
+			var dir := Vector2(randf() * 2.0 - 1.0, randf() * 2.0 - 1.0).normalized()
+			tw.tween_property(s, "offset", base_off + dir * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			amp *= 0.85
+		tw.tween_property(s, "offset", base_off, 0.06)
+	elif target is Node2D:
+		var n: Node2D = target
+		var base_pos := n.position
+		var tw2 := create_tween()
+		for i in range(vibrato):
+			var dir2 := Vector2(randf()*2-1, randf()*2-1).normalized()
+			tw2.tween_property(n, "position", base_pos + dir2 * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			amp *= 0.85
+		tw2.tween_property(n, "position", base_pos, 0.06)
 
 # --- เรียก FX ตอนโดนโจมตี แล้วค่อยคำนวณดาเมจ ---
 
 
-    # ====== ด้านล่างแทนที่ด้วยลอจิกเดิมของคุณ ======
-    # ตัวอย่าง: หักเกราะก่อน แล้วค่อยหักเงิน
+	# ====== ด้านล่างแทนที่ด้วยลอจิกเดิมของคุณ ======
+	# ตัวอย่าง: หักเกราะก่อน แล้วค่อยหักเงิน
 # ========= HIT FX (ไม่ชนกับการ Tween เดิน) =========
 
 # สั่นด้วยการแกว่ง 'rotation' + 'scale' (ไม่ยุ่งกับ position)
 func _hit_shake_rot_scale(target: Node2D, duration: float = 0.22, rot_amp_deg: float = 7.0, scale_amp: float = 0.05, vibrato: int = 10) -> void:
-    if target == null: return
-    var base_rot: float = target.rotation_degrees
-    var base_scale: Vector2 = target.scale
-    var tw: Tween = create_tween()
-    var step: float = duration / float(max(1, vibrato))
-    var amp_rot: float = rot_amp_deg
-    var amp_s: float = scale_amp
-    for i in range(vibrato):
-        var sign: float = 1.0 if (i % 2) == 0 else -1.0
-        tw.tween_property(target, "rotation_degrees", base_rot + sign * amp_rot, step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-        tw.tween_property(target, "scale", base_scale * (1.0 + sign * amp_s), step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-        amp_rot *= 0.85
-        amp_s   *= 0.85
-    # รีเซ็ตคืนค่าเดิม
-    tw.tween_property(target, "rotation_degrees", base_rot, 0.06)
-    tw.tween_property(target, "scale", base_scale, 0.06)
+	if target == null: return
+	var base_rot: float = target.rotation_degrees
+	var base_scale: Vector2 = target.scale
+	var tw: Tween = create_tween()
+	var step: float = duration / float(max(1, vibrato))
+	var amp_rot: float = rot_amp_deg
+	var amp_s: float = scale_amp
+	for i in range(vibrato):
+		var sign: float = 1.0 if (i % 2) == 0 else -1.0
+		tw.tween_property(target, "rotation_degrees", base_rot + sign * amp_rot, step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(target, "scale", base_scale * (1.0 + sign * amp_s), step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		amp_rot *= 0.85
+		amp_s   *= 0.85
+	# รีเซ็ตคืนค่าเดิม
+	tw.tween_property(target, "rotation_degrees", base_rot, 0.06)
+	tw.tween_property(target, "scale", base_scale, 0.06)
 
 # สร้าง/คืน ShaderMaterial สำหรับแวบแดง (ใช้ซ้ำได้)
 var _hit_flash_shader: Shader = null
 # -- แทนที่ฟังก์ชัน ensure material เดิม --
 func _ensure_flash_material(spr: Sprite2D) -> ShaderMaterial:
-    if spr == null: 
-        return null
-    var sh := _get_hit_flash_shader()
-    var mat := spr.material as ShaderMaterial
-    if mat == null or mat.shader != sh:
-        mat = ShaderMaterial.new()
-        mat.shader = sh
-        spr.material = mat
-    return mat
+	if spr == null: 
+		return null
+	var sh := _get_hit_flash_shader()
+	var mat := spr.material as ShaderMaterial
+	if mat == null or mat.shader != sh:
+		mat = ShaderMaterial.new()
+		mat.shader = sh
+		spr.material = mat
+	return mat
 
 
 # ทำแวบแดงสั้น ๆ ด้วย shader (ไม่ชน modulate ภายนอก)
 func _hit_flash_red(spr: Sprite2D, times: int = 2, one: float = 0.06) -> void:
-    var mat := _ensure_flash_material(spr)
-    if mat == null: return
-    var tw: Tween = create_tween()
-    for i in range(times):
-        tw.tween_property(mat, "shader_parameter/flash", 1.0, one)
-        tw.tween_property(mat, "shader_parameter/flash", 0.0, one)
+	var mat := _ensure_flash_material(spr)
+	if mat == null: return
+	var tw: Tween = create_tween()
+	for i in range(times):
+		tw.tween_property(mat, "shader_parameter/flash", 1.0, one)
+		tw.tween_property(mat, "shader_parameter/flash", 0.0, one)
 
 # สะดวกไว้เรียกที่เดียว
 func play_hit_fx(piece: Sprite2D) -> void:
-    _hit_flash_red(piece)
-    _hit_shake_rot_scale(piece)
+	_hit_flash_red(piece)
+	_hit_shake_rot_scale(piece)
 
 func _get_hit_flash_shader() -> Shader:
-    if _hit_flash_shader != null:
-        return _hit_flash_shader
-    # พยายามโหลดจากไฟล์ (ถ้ามี)
-    if ResourceLoader.exists(HIT_FLASH_SHADER_PATH):
-        var res := load(HIT_FLASH_SHADER_PATH)
-        if res is Shader:
-            _hit_flash_shader = res
-            return _hit_flash_shader
-    # ไม่เจอไฟล์ → สร้าง shader ในหน่วยความจำ
-    var sh := Shader.new()
-    sh.code = """
+	if _hit_flash_shader != null:
+		return _hit_flash_shader
+	# พยายามโหลดจากไฟล์ (ถ้ามี)
+	if ResourceLoader.exists(HIT_FLASH_SHADER_PATH):
+		var res := load(HIT_FLASH_SHADER_PATH)
+		if res is Shader:
+			_hit_flash_shader = res
+			return _hit_flash_shader
+	# ไม่เจอไฟล์ → สร้าง shader ในหน่วยความจำ
+	var sh := Shader.new()
+	sh.code = """
 shader_type canvas_item;
 uniform vec4 flash_color : source_color = vec4(1.0, 0.3, 0.3, 1.0);
 uniform float flash : hint_range(0.0, 1.0) = 0.0;
 void fragment() {
-    vec4 base = texture(TEXTURE, UV) * COLOR;
-    vec4 fcol = vec4(flash_color.rgb, base.a);
-    COLOR = mix(base, fcol, clamp(flash, 0.0, 1.0));
+	vec4 base = texture(TEXTURE, UV) * COLOR;
+	vec4 fcol = vec4(flash_color.rgb, base.a);
+	COLOR = mix(base, fcol, clamp(flash, 0.0, 1.0));
 }
 """
-    _hit_flash_shader = sh
-    return _hit_flash_shader
+	_hit_flash_shader = sh
+	return _hit_flash_shader
 
 
 func _play_hit_fx_local(victim: Sprite2D) -> void:
-    if victim == null: return
-    flash_red(victim)
-    shake(victim)
+	if victim == null: return
+	flash_red(victim)
+	shake(victim)
 
 @rpc("authority", "unreliable")
 func ev_hit_fx_path(path_str: String) -> void:
-    var node := get_node_or_null(path_str)
-    if node is Sprite2D:
-        _play_hit_fx_local(node)
+	var node := get_node_or_null(path_str)
+	if node is Sprite2D:
+		_play_hit_fx_local(node)
 
 
 func _broadcast_hit_fx(victim: Sprite2D) -> void:
-    if victim == null: return
-    # เล่นที่เครื่องนี้ก่อน
-    _play_hit_fx_local(victim)
-    # กระจายไปทุกเครื่อง (เฉพาะโฮสต์)
-    if Net != null and Net.is_networked() and Net.is_server():
-        var p: NodePath = victim.get_path()
-        rpc("ev_hit_fx_path", String(p))
+	if victim == null: return
+	# เล่นที่เครื่องนี้ก่อน
+	_play_hit_fx_local(victim)
+	# กระจายไปทุกเครื่อง (เฉพาะโฮสต์)
+	if Net != null and Net.is_networked() and Net.is_server():
+		var p: NodePath = victim.get_path()
+		rpc("ev_hit_fx_path", String(p))
 
 
 func _on_settings_btn_pressed() -> void:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 	pass # Replace with function body.
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
-    pass # Replace with function body.
->>>>>>> Stashed changes
-=======
-    pass # Replace with function body.
->>>>>>> Stashed changes
-=======
-    pass # Replace with function body.
->>>>>>> Stashed changes
-=======
-	for c in obstacles_root.get_children():
-		c.queue_free()
-	obstacle_cells.clear()
->>>>>>> parent of b073401 (sdsdsd)

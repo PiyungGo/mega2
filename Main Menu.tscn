@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://cdwng6ow71d1r"]
+[gd_scene load_steps=21 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
 [ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
@@ -97,6 +97,28 @@ corner_radius_top_right = 16
 corner_radius_bottom_right = 16
 corner_radius_bottom_left = 16
 shadow_size = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wfgb2"]
+bg_color = Color(0.54902, 0.505882, 0.878431, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+expand_margin_left = 10.0
+expand_margin_top = 10.0
+expand_margin_right = 10.0
+expand_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bcalf"]
+bg_color = Color(0.54902, 0.505882, 0.878431, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+expand_margin_left = 10.0
+expand_margin_top = 10.0
+expand_margin_right = 10.0
+expand_margin_bottom = 10.0
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -349,6 +371,7 @@ theme_override_font_sizes/font_size = 20
 text = "Music"
 
 [node name="Panel2" type="Panel" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -1562,22 +1585,135 @@ text = "Back"
 stream = ExtResource("6_wfgb2")
 volume_db = -8.211
 
+[node name="CreateOverlay" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.591
+offset_left = -463.84
+offset_top = -194.0
+offset_right = -132.27
+offset_bottom = -154.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(2.82983, 2.82983)
+theme_override_styles/panel = SubResource("StyleBoxFlat_wfgb2")
+
+[node name="VBox" type="VBoxContainer" parent="CreateOverlay"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="CreateOverlay/VBox"]
+layout_mode = 2
+text = "สร้างห้อง"
+
+[node name="HBox" type="HBoxContainer" parent="CreateOverlay/VBox"]
+layout_mode = 2
+
+[node name="LocalButton" type="Button" parent="CreateOverlay/VBox/HBox"]
+layout_mode = 2
+text = "เล่นผ่านอุปกรณ์นี้"
+
+[node name="HostButton" type="Button" parent="CreateOverlay/VBox/HBox"]
+layout_mode = 2
+text = "สร้างเซิร์ฟเวอร์ (ออนไลน์)"
+
+[node name="StatusLabel" type="Label" parent="CreateOverlay/VBox"]
+layout_mode = 2
+text = "autowrap"
+
+[node name="HBox2" type="HBoxContainer" parent="CreateOverlay/VBox"]
+layout_mode = 2
+
+[node name="CancelBtn" type="Button" parent="CreateOverlay/VBox/HBox2"]
+layout_mode = 2
+text = "ยกเลิก"
+
+[node name="StartBtn" type="Button" parent="CreateOverlay/VBox/HBox2"]
+layout_mode = 2
+disabled = true
+text = "เริ่มเกม"
+
+[node name="JoinOverlay" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+offset_left = 687.0
+offset_top = 344.0
+offset_right = 886.855
+offset_bottom = 526.53
+scale = Vector2(2.95735, 2.95735)
+theme_override_styles/panel = SubResource("StyleBoxFlat_bcalf")
+
+[node name="VBox" type="VBoxContainer" parent="JoinOverlay"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/separation = 35
+
+[node name="Label" type="Label" parent="JoinOverlay/VBox"]
+layout_mode = 2
+text = "เข้าร่วมเซิฟเวอร์"
+
+[node name="Tabs" type="TabBar" parent="JoinOverlay/VBox"]
+custom_minimum_size = Vector2(117.595, 0)
+layout_mode = 2
+
+[node name="LAN" type="HBoxContainer" parent="JoinOverlay/VBox/Tabs"]
+custom_minimum_size = Vector2(161.855, 36.825)
+layout_mode = 0
+offset_left = -28.4038
+offset_top = 55.6153
+offset_right = 133.451
+offset_bottom = 92.4403
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="ScanBtn" type="Button" parent="JoinOverlay/VBox/Tabs/LAN"]
+layout_mode = 2
+text = "ค้นหาอัตโนมัติ"
+
+[node name="Hamachi" type="HBoxContainer" parent="JoinOverlay/VBox/Tabs"]
+layout_mode = 0
+offset_left = -1.69071
+offset_top = 0.764408
+offset_right = 197.309
+offset_bottom = 31.7644
+theme_override_constants/separation = 70
+
+[node name="JoinBtn" type="Button" parent="JoinOverlay/VBox/Tabs/Hamachi"]
+layout_mode = 2
+text = "เข้าร่วม"
+
+[node name="IpBox" type="LineEdit" parent="JoinOverlay/VBox/Tabs/Hamachi"]
+layout_mode = 2
+placeholder_text = "25.2.1.169"
+
+[node name="StatusLabel" type="Label" parent="JoinOverlay/VBox"]
+layout_mode = 2
+
+[node name="CancelBtn" type="Button" parent="JoinOverlay/VBox"]
+layout_mode = 2
+text = "ยกเลิก"
+
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Main button/Button4" to="." method="_on_guide_pressed"]
-[connection signal="pressed" from="Main button/Button" to="." method="_on_Start_pressed"]
-[connection signal="pressed" from="Main button/Button" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="Main button/Button5" to="." method="_on_start_pressed"]
-[connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
+[connection signal="pressed" from="Main button/Button" to="." method="_on_button_pressed"]
+[connection signal="pressed" from="Main button/Button5" to="." method="_on_Button5_pressed"]
 [connection signal="pressed" from="Main button/Button2" to="." method="_on_setting_pressed"]
-[connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Main button/Button2" to="." method="_on_Creat_pressed"]
 [connection signal="pressed" from="Main button/Button3" to="." method="_on_exit_pressed"]
-[connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
+[connection signal="pressed" from="Main button/Button3" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="option/Back" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="option/Back" to="." method="_on_Setting_pressed"]
 [connection signal="value_changed" from="option/AudioControl" to="option/AudioControl" method="_on_value_changed"]
 [connection signal="toggled" from="option/FullscreenControl" to="option/FullscreenControl" method="_on_toggled"]
 [connection signal="pressed" from="Panel2/NextButton" to="." method="_on_next_button_pressed"]
-[connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel2/Back2" to="." method="_on_back_option_pressed"]
+[connection signal="pressed" from="Panel2/Back2" to="." method="_on_Setting_pressed"]
 [connection signal="pressed" from="Panel2/BackButton" to="." method="_on_back_button_pressed"]
 [connection signal="pressed" from="Panel3/NextButton1" to="." method="_on_next_button_pressed"]
 [connection signal="pressed" from="Panel3/Back2" to="." method="_on_back_option_pressed"]

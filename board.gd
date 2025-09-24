@@ -7,7 +7,7 @@ extends Sprite2D
 @export var BOARD_SIZE: int = 8
 @export var CELL_SIZE: int = 800
 @export var MAX_STEPS: int = 6                 # เดินได้กี่ช่อง (แมนฮัตตัน)
-
+const NUM_SLOTS := 8
 # แหล่งไฟล์ (ถ้าใช้ texture_holder เป็น Sprite2D root)
 @export var texture_holder: PackedScene         # res://texture_holder.tscn
 @export var tex_good:  Texture2D                # ใส่รูปตัว 1
@@ -113,6 +113,7 @@ var obstacle_cells := {}   # Dictionary acting as set: key=Vector2i, value=true
 @onready var hover_zone: Control = $CanvasLayer/CardBar/HoverZone
 const PROCESS_FREEZE_TURNS := 4   # ← ถ้าอยากให้ 1 เทิร์น เปลี่ยนเป็น 1
 const SYSTEM_FAILURE_PENALTY := 200
+const HIT_FLASH_SHADER_PATH := "res://__hit_flash_shader.gdshader"
 var frozen_turns: Dictionary = {}  # Sprite2D -> เทิร์นที่เหลือ
 var _bar_shown_y: float
 var _bar_hidden_y: float
@@ -206,17 +207,13 @@ var teleport_pending: bool = false    # โหมดเลือกจุดว�
 var _flash_tw_by_piece: Dictionary[Sprite2D, Tween] = {}
 var slot_buttons: Array[Button] = []
 
-func _cache_slot_buttons() -> void:
-    slot_buttons.clear()
-    if slots_container:
-        for i in range(1, 9):
-            var b := slots_container.get_node_or_null("Slot%d" % i) as Button
-            if b:
-                slot_buttons.append(b)
-
-@onready var grid_origin: Node2D = $GridOrigin  # ถ้าไม่มี node นี้ จะ fallback วิธี B
+# board.gd (ตอนบนไฟล์)
+var NET_ENABLED := false
+var IS_HOST := false
+var MY_PIECE := ""
 
 func _ready() -> void:
+    _setup_card_bar()
     if texture:
         var tex_size = texture.get_size() * scale
         CELL_SIZE = int(tex_size.x / BOARD_SIZE)
@@ -304,6 +301,83 @@ func _ready() -> void:
     img.fill(Color(1, 0, 0, 0.35))
     _marker_tex = ImageTexture.create_from_image(img)
 
+func _apply_network_assignments() -> void:
+    # ฆ่าตัวที่ไม่มีคนคุมตั้งแต่เริ่ม
+    var assign := Net.get_assign_map()     # peer_id(string) -> piece(String)
+    var alive := []
+    for k in assign.keys():
+        alive.append(assign[k])
+
+    var all := ["Good","Call","Hacker","Police"]
+    for p in all:
+        if not alive.has(p):
+            _kill_piece_immediately(p)     # ← ใช้ฟังก์ชันลัดฆ่าที่คุณมีอยู่ (เช่น _kill_piece)
+
+    # จำกัดสิทธิ์ควบคุม: ไม่ใช่ชิ้นของเรา ⇒ ปิดปุ่มกด/การ์ดทั้งหมดไว้ก่อน
+    if MY_PIECE != "":
+        _lock_all_controls_except_mine()
+
+func _kill_piece_immediately(piece_name: String) -> void:
+    # TODO: เรียกฟังก์ชันฆ่าที่คุณมีอยู่ (อัปเดตเงิน/เอาออกจากบอร์ด/อัปเดต UI)
+    # ตัวอย่าง: _remove_piece_from_board(piece_name) หรือ _kill_piece(piece_name)
+    pass
+
+func _lock_all_controls_except_mine() -> void:
+    # ปิด UI ที่ลูกค้าไม่ควรแตะเมื่อไม่ใช่เทิร์น/ไม่ใช่ตัวเรา
+    # ตัวอย่าง (แก้ path ให้ตรงโปรเจกต์):
+    # $CanvasLayer/AttackBar.disabled = true
+    # $CanvasLayer/DiceUI.hide()
+    # และเวลาเป็นเทิร์นของ MY_PIECE ค่อยเปิด (ดูขั้น 5)
+    pass
+
+
+func _cache_slot_buttons() -> void:
+    slot_buttons.clear()
+    if slots_container == null:
+        return
+
+    # รวบรวมปุ่มจาก Slot1..Slot8 (ปรับจำนวนได้)
+    for i in range(1, 9):
+        var slot := slots_container.get_node_or_null("Slot%d" % i)
+        if slot == null:
+            continue
+        # รองรับทั้งกรณี Slot เป็นปุ่มเอง หรือมีลูกชื่อ Button
+        var btn := slot as Button
+        if btn == null:
+            btn = slot.get_node_or_null("Button") as Button
+        if btn != null:
+            slot_buttons.append(btn)
+
+# === ตัวอย่างจุดต่อ RPC ===
+@rpc("any_peer","reliable")
+func request_roll() -> void:
+    if not IS_HOST: return
+    var sender := multiplayer.get_remote_sender_id()
+    # ตรวจสอบว่า sender คุมชิ้นที่เป็นเทิร์นอยู่จริงไหม
+    # ถ้าถูกต้อง ให้รันโค้ดทอยเต๋าเดิมของคุณ แล้ว rpc ผลลัพธ์ให้ทุกเครื่อง
+    # rpc("ev_dice_value", value)
+
+@rpc("authority","reliable")
+func ev_dice_value(value: int) -> void:
+    # ทุกเครื่องอัปเดต UI แสดงค่าทอย
+    # ถ้าเครื่องไหนไม่ใช่เทิร์น ก็ยังกดอะไรไม่ได้อยู่ดี
+    pass
+
+
+func _setup_card_bar() -> void:
+    _cache_slot_buttons()
+    for i in slot_buttons.size():
+        var btn: Button = slot_buttons[i]
+        var cb := Callable(self, "_on_card_slot_pressed").bind(i)
+        # กันการเชื่อมซ้ำแบบ idempotent
+        if btn.pressed.is_connected(cb):
+            btn.pressed.disconnect(cb)
+        btn.pressed.connect(cb)
+
+@onready var grid_origin: Node2D = $GridOrigin  # ถ้าไม่มี node นี้ จะ fallback วิธี B
+
+
+
 @onready var player_profiles := $CanvasLayer/PlayerProfiles
 var profile_cards := {}   # name -> card (Control)
 # เก็บ reference ของโปรไฟล์แต่ละอัน
@@ -356,6 +430,7 @@ func add_shield(p: Sprite2D, delta: int) -> void:
     var cur: int = int(shield_by_piece.get(p, 0))
     shield_by_piece[p] = max(0, cur + delta)
     _update_money_ui()
+    SFX.play_world("shield_up", pieces)  # piece = Sprite2D/Node2D ของตัวนั้น
 
 func set_shield(p: Sprite2D, value: int) -> void:
     if p == null: return
@@ -569,7 +644,10 @@ func _unhandled_input(e: InputEvent) -> void:
             var used: int = path.size()
             steps_left = max(steps_left - used, 0)
             _set_roll_label(steps_for_current_piece, steps_left)
-
+            
+            var piece_node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % selected_piece)
+            if piece_node:
+                SFX.play_world("move_step", piece_node)
 
             # sync ตำแหน่งเลือกให้ตรงกับตำแหน่งใหม่ที่เพิ่งเดินถึง
             selected_cell = piece_cells[selected_piece]   # ใช้ข้อมูลจริงจาก map
@@ -732,23 +810,37 @@ func _show_win_screen(winner: Sprite2D) -> void:
     win_title.text = "ชัยชนะ!"
     win_sub.text = "%s ชนะเกม!" % winner.name
 
-func flash_red(target: Sprite2D) -> void:
-    if target == null:
-        return
+# ========== FX (ไม่ชน tween เดิน) ==========
+func flash_red(target: Sprite2D, times: int = 2, one: float = 0.08) -> void:
+    if target == null: return
     var tw := create_tween()
-    tw.tween_property(target, "modulate", Color(1, 0, 0, 1), 0.1) # เปลี่ยนเป็นแดง
-    tw.tween_property(target, "modulate", Color(1, 1, 1, 1), 0.2) # กลับเป็นปกติ
+    for i in range(times):
+        tw.tween_property(target, "self_modulate", Color(1, 0.3, 0.3, 1), one)
+        tw.tween_property(target, "self_modulate", Color(1, 1, 1, 1), one)
 
-func shake(target: Node2D, intensity: float = 60.0, duration: float = 0.3) -> void:
-    if target == null:
-        return
-    var original_pos := target.position
+func shake(target: Node2D, intensity: float = 32.0, duration: float = 0.22, step_time: float = 0.03, damping: float = 0.7) -> void:
+    #แรงขึ้น → เพิ่ม intensity (เช่น 20–30)(สั่นถี่) →  ลด step_time (เช่น 0.02)เร็วขึ้น สั้นและดุ → ลด duration (เช่น 0.16–0.22) ฟีลกระแทกกวาดเดียว → ลด damping (เช่น 0.7) ให้แรงตกไว
+    if target == null: return
     var tw := create_tween()
-    var steps := int(duration / 0.05)
-    for i in steps:
-        var offset := Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
-        tw.tween_property(target, "position", original_pos + offset, 0.05)
-    tw.tween_property(target, "position", original_pos, 0.05)
+    var steps := int(ceil(duration / step_time))
+
+    if target is Sprite2D:
+        var s: Sprite2D = target
+        var base := s.offset
+        for i in range(steps):
+            var amp := intensity * pow(damping, i)                 # ลดแรงทีละสเต็ป
+            var off := Vector2(randf_range(-amp, amp), randf_range(-amp, amp))
+            tw.tween_property(s, "offset", base + off, step_time)
+        tw.tween_property(s, "offset", base, 0.06)
+    else:
+        var basep := target.position
+        for i in range(steps):
+            var amp2 := intensity * pow(damping, i)
+            var off2 := Vector2(randf_range(-amp2, amp2), randf_range(-amp2, amp2))
+            tw.tween_property(target, "position", basep + off2, step_time)
+        tw.tween_property(target, "position", basep, 0.06)
+
+
 
 func _show_move_skip_bar() -> void:
     if attack_bar == null or skip_btn == null:
@@ -846,8 +938,29 @@ func _on_settings_closed(overlay: Node) -> void:
 
 
 func _refresh_card_bar_ui() -> void:
-    if card_bar == null: return
-    if active_piece == null: return
+    # อย่าไปทำอะไรถ้า card_bar ยังไม่พร้อม
+    if card_bar == null or not is_instance_valid(card_bar):
+        return
+
+    # ถ้าคุณมี NUM_SLOTS ตายตัว:
+    for i in range(NUM_SLOTS):
+        var slot := card_bar.get_node_or_null("Slot%d" % i)
+        if slot == null:
+            continue
+        var btn: Button = slot.get_node_or_null("Button")
+        if btn == null:
+            continue
+
+        var cb := Callable(self, "_on_card_slot_pressed").bind(i)
+        if not btn.pressed.is_connected(cb):
+            btn.pressed.connect(cb)
+
+    # จากนี้ค่อยไปอัปเดต UI อื่น ๆ
+    if active_piece == null:
+        return
+
+    # ... ส่วนอัปเดตไอคอน/ข้อความ/enable ของช่องการ์ด ...
+
 
     if selected_card_index >= hand_by_piece.get(active_piece, []).size():
         selected_card_index = -1
@@ -936,6 +1049,7 @@ func _refresh_card_bar_ui() -> void:
 
 func _on_card_slot_pressed(i: int) -> void:
     selected_card_index = i
+    SFX.play_ui("card_select")
     _refresh_card_bar_ui()
 
 func _on_use_card_pressed() -> void:
@@ -984,19 +1098,22 @@ func apply_damage(p: Sprite2D, dmg: int) -> void:
     if p == null or dmg <= 0:
         return
 
-    # 1) หักจากเกราะก่อน
-    var shield_cur: int = int(shield_by_piece.get(p, 0))
-    var after_shield: int = int(max(0, shield_cur - dmg))   # <- ระบุเป็น int
-    var overflow: int = int(max(0, dmg - shield_cur))
+    # 🔔 เอฟเฟกต์ไม่ชน tween เดิน
+    play_hit_fx(p)
 
+    # ------ ลอจิกดาเมจเดิมของคุณ ------
+    var shield_cur: int = shield_by_piece.get(p, 0)
+    var after_shield: int = max(0, shield_cur - dmg)
+    var overflow: int = max(0, dmg - shield_cur)
     shield_by_piece[p] = after_shield
-    _update_money_ui()  # อัปเดตโชว์เกราะที่ลดลงก่อน
-
-    # 2) ถ้ายังเหลือดาเมจ → หักเงิน
+    _update_money_ui()
     if overflow > 0:
-        add_money(p, -overflow)   # ฟังก์ชันนี้ของคุณจะ clamp เป็น 0 + เช็ก kill ให้เรียบร้อย
+        add_money(p, -overflow)
     else:
         _check_win_condition()
+
+
+
 
 func _start_card_phase() -> void:
         # ===== ใช้อาคารถ้าพึ่งเดินลงบนมันตานี้ =====
@@ -1226,6 +1343,11 @@ func _update_money_ui() -> void:
 
 
 func add_money(p: Sprite2D, delta: int) -> void:
+    if delta < 0 and p != null:
+        SFX.play_world("attack_hit", p)
+        _broadcast_hit_fx(p)
+        flash_red(p)
+        shake(p)
     if p == null:
         return
     var cur: int = int(money_by_piece.get(p, hp_start))  # <- cast เป็น int
@@ -1985,7 +2107,9 @@ func _apply_card_effect(user: Sprite2D, card: Variant) -> bool:
 func _setup_card_bar_slide() -> void:
     if card_bar == null:
         return
-
+    
+    
+    
     # คำนวนตำแหน่งเป้าหมาย
     var screen_h := get_viewport_rect().size.y
     var bar_h := card_bar.size.y
@@ -2025,7 +2149,18 @@ func _setup_card_bar_slide() -> void:
     for b in slot_buttons:
         if b and not b.is_connected("mouse_entered", Callable(self, "_keep_bar_open")):
             b.mouse_entered.connect(_keep_bar_open)
+    
+    for i in range(NUM_SLOTS):
+        var slot := card_bar.get_node_or_null("Slot%d" % i)
+        if slot == null:
+            continue
+        var btn: Button = slot.get_node_or_null("Button")
+        if btn == null:
+            continue
 
+        var cb := Callable(self, "_on_card_slot_pressed").bind(i)
+        if not btn.pressed.is_connected(cb):
+            btn.pressed.connect(cb)
     # เริ่มต้นให้หุบ (เห็นแค่ขอบ)
     _slide_card_bar(false)
 
@@ -2150,6 +2285,9 @@ func _begin_teleport_targeting() -> void:
     reachable = _all_walkable_empty_cells()
     parent_map.clear()  # ไม่ใช้ BFS ในโหมดนี้
     queue_redraw()
+    var node: Sprite2D = get_node_or_null("Pieces/%s/Sprite" % active_piece)
+    if node:
+        SFX.play_world("warp", node)
 
 
 
@@ -2302,11 +2440,13 @@ func _on_target_marker_input(viewport: Viewport, event: InputEvent, _shape_idx: 
         match _card_target_mode:
             CardTargetMode.SELECT_PLAYER_STEAL50:
                 _resolve_card_steal_50_per(target_piece_name)
+                SFX.play_ui("card_root")
             CardTargetMode.SELECT_ADJ_STEAL20:
                 _resolve_card_steal_20_per(target_piece_name)
+                
             CardTargetMode.SELECT_PLAYER_FREEZE:
                 _resolve_card_freeze(target_piece_name)
-                
+                SFX.play_ui("card_freeze")
         _exit_select_mode()
         get_viewport().set_input_as_handled()
         
@@ -2666,9 +2806,17 @@ func apply_damage_from(attacker: Sprite2D, victim: Sprite2D, dmg: int, bypass_al
         _update_money_ui()
         ChatBus.log_event("blocked", "Reflective Surge! %s ป้องกันดาเมจจาก %s",
     [victim.name, attacker.name])
+    
 
-        return
+        
     apply_damage(victim, dmg)  # ของเดิม
+    var shield_cur: int = int(shield_by_piece.get(victim, 0))
+    var overflow: int   = int(max(0, dmg - shield_cur))
+    if overflow == 0:
+        SFX.play_world("block", victim)
+    else:
+        SFX.play_world("attack_hit", victim)
+        return
 
 func _is_frozen(p: Sprite2D) -> bool:
     return int(frozen_turns.get(p, 0)) > 0
@@ -2779,7 +2927,7 @@ func generate_obstacles() -> void:
             var c := Vector2i(x, y)
             if forbidden.has(c): continue
             candidates.append(c)
-    candidates.shuffle()
+
 
     var placed: Array[Vector2i] = []
     var tries := 0
@@ -3132,13 +3280,14 @@ func _trigger_building_if_ready(p: Sprite2D, cell: Vector2i) -> void:
             ChatBus.log_event("bonus", "%s รับเงิน +300 จาก Bank", [p.name])
 
         Building.DARKWEB:
-            _give_darkweb_cards(p, 2)    # ✅ จั่วเฉพาะ p ผู้ที่เหยียบ
+            _give_darkweb_cards(p, 0)    # ✅ จั่วเฉพาะ p ผู้ที่เหยียบ
             _set_building_cd(cell, 6)
             _notify_center("%s ได้รับไพ่เพิ่ม +2 จากดาร์คเว็บ" % p.name)
             ChatBus.log_event("bonus", "%s จั่วเพิ่ม +2 (Dark Web)", [p.name])
 
         Building.CYBER_STATION:
             add_shield(p, 200)
+            SFX.play_world("shield_up", pieces)
             _notify_center("%s ได้โล่ +200 จากสถานีไซเบอร์" % p.name)
             ChatBus.log_event("buff", "%s โล่ +200 (Cyber Station)", [p.name])
 
@@ -3361,3 +3510,139 @@ func _decay_building_cd_one_round() -> void:
         to_update.append(c)
     for c in to_update:
         _update_building_visual(c)
+
+# --- FX: แวบแดง ---
+func _flash_red(target: CanvasItem, times: int = 2, one: float = 0.06) -> void:
+    var t := create_tween()
+    for i in range(times):
+        t.tween_property(target, "self_modulate", Color(1, 0.4, 0.4, 1), one)
+        t.tween_property(target, "self_modulate", Color(1, 1, 1, 1), one)
+
+# --- FX: เขย่า (ปลอดภัยกับการเดิน) ---
+func _shake_any(target: Node, amplitude: float = 8.0, duration: float = 0.25, vibrato: int = 12) -> void:
+    var step_time: float = duration / float(max(1, vibrato))
+    var amp: float = amplitude
+
+    if target is Sprite2D:
+        var s: Sprite2D = target
+        var base_off := s.offset
+        var tw := create_tween()
+        for i in range(vibrato):
+            var dir := Vector2(randf() * 2.0 - 1.0, randf() * 2.0 - 1.0).normalized()
+            tw.tween_property(s, "offset", base_off + dir * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+            amp *= 0.85
+        tw.tween_property(s, "offset", base_off, 0.06)
+    elif target is Node2D:
+        var n: Node2D = target
+        var base_pos := n.position
+        var tw2 := create_tween()
+        for i in range(vibrato):
+            var dir2 := Vector2(randf()*2-1, randf()*2-1).normalized()
+            tw2.tween_property(n, "position", base_pos + dir2 * amp, step_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+            amp *= 0.85
+        tw2.tween_property(n, "position", base_pos, 0.06)
+
+# --- เรียก FX ตอนโดนโจมตี แล้วค่อยคำนวณดาเมจ ---
+
+
+    # ====== ด้านล่างแทนที่ด้วยลอจิกเดิมของคุณ ======
+    # ตัวอย่าง: หักเกราะก่อน แล้วค่อยหักเงิน
+# ========= HIT FX (ไม่ชนกับการ Tween เดิน) =========
+
+# สั่นด้วยการแกว่ง 'rotation' + 'scale' (ไม่ยุ่งกับ position)
+func _hit_shake_rot_scale(target: Node2D, duration: float = 0.22, rot_amp_deg: float = 7.0, scale_amp: float = 0.05, vibrato: int = 10) -> void:
+    if target == null: return
+    var base_rot: float = target.rotation_degrees
+    var base_scale: Vector2 = target.scale
+    var tw: Tween = create_tween()
+    var step: float = duration / float(max(1, vibrato))
+    var amp_rot: float = rot_amp_deg
+    var amp_s: float = scale_amp
+    for i in range(vibrato):
+        var sign: float = 1.0 if (i % 2) == 0 else -1.0
+        tw.tween_property(target, "rotation_degrees", base_rot + sign * amp_rot, step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+        tw.tween_property(target, "scale", base_scale * (1.0 + sign * amp_s), step).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+        amp_rot *= 0.85
+        amp_s   *= 0.85
+    # รีเซ็ตคืนค่าเดิม
+    tw.tween_property(target, "rotation_degrees", base_rot, 0.06)
+    tw.tween_property(target, "scale", base_scale, 0.06)
+
+# สร้าง/คืน ShaderMaterial สำหรับแวบแดง (ใช้ซ้ำได้)
+var _hit_flash_shader: Shader = null
+# -- แทนที่ฟังก์ชัน ensure material เดิม --
+func _ensure_flash_material(spr: Sprite2D) -> ShaderMaterial:
+    if spr == null: 
+        return null
+    var sh := _get_hit_flash_shader()
+    var mat := spr.material as ShaderMaterial
+    if mat == null or mat.shader != sh:
+        mat = ShaderMaterial.new()
+        mat.shader = sh
+        spr.material = mat
+    return mat
+
+
+# ทำแวบแดงสั้น ๆ ด้วย shader (ไม่ชน modulate ภายนอก)
+func _hit_flash_red(spr: Sprite2D, times: int = 2, one: float = 0.06) -> void:
+    var mat := _ensure_flash_material(spr)
+    if mat == null: return
+    var tw: Tween = create_tween()
+    for i in range(times):
+        tw.tween_property(mat, "shader_parameter/flash", 1.0, one)
+        tw.tween_property(mat, "shader_parameter/flash", 0.0, one)
+
+# สะดวกไว้เรียกที่เดียว
+func play_hit_fx(piece: Sprite2D) -> void:
+    _hit_flash_red(piece)
+    _hit_shake_rot_scale(piece)
+
+func _get_hit_flash_shader() -> Shader:
+    if _hit_flash_shader != null:
+        return _hit_flash_shader
+    # พยายามโหลดจากไฟล์ (ถ้ามี)
+    if ResourceLoader.exists(HIT_FLASH_SHADER_PATH):
+        var res := load(HIT_FLASH_SHADER_PATH)
+        if res is Shader:
+            _hit_flash_shader = res
+            return _hit_flash_shader
+    # ไม่เจอไฟล์ → สร้าง shader ในหน่วยความจำ
+    var sh := Shader.new()
+    sh.code = """
+shader_type canvas_item;
+uniform vec4 flash_color : source_color = vec4(1.0, 0.3, 0.3, 1.0);
+uniform float flash : hint_range(0.0, 1.0) = 0.0;
+void fragment() {
+    vec4 base = texture(TEXTURE, UV) * COLOR;
+    vec4 fcol = vec4(flash_color.rgb, base.a);
+    COLOR = mix(base, fcol, clamp(flash, 0.0, 1.0));
+}
+"""
+    _hit_flash_shader = sh
+    return _hit_flash_shader
+
+
+func _play_hit_fx_local(victim: Sprite2D) -> void:
+    if victim == null: return
+    flash_red(victim)
+    shake(victim)
+
+@rpc("authority", "unreliable")
+func ev_hit_fx_path(path_str: String) -> void:
+    var node := get_node_or_null(path_str)
+    if node is Sprite2D:
+        _play_hit_fx_local(node)
+
+
+func _broadcast_hit_fx(victim: Sprite2D) -> void:
+    if victim == null: return
+    # เล่นที่เครื่องนี้ก่อน
+    _play_hit_fx_local(victim)
+    # กระจายไปทุกเครื่อง (เฉพาะโฮสต์)
+    if Net != null and Net.is_networked() and Net.is_server():
+        var p: NodePath = victim.get_path()
+        rpc("ev_hit_fx_path", String(p))
+
+
+func _on_settings_btn_pressed() -> void:
+    pass # Replace with function body.

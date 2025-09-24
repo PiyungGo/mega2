@@ -376,3 +376,10 @@ func _on_net_disconnected() -> void:
 
 func _on_button_pressed() -> void:
 	open_create_overlay()
+
+# MainMenu.gd
+func on_start_button_pressed() -> void:
+	if multiplayer.is_server():
+		var board := get_tree().get_first_node_in_group("BoardRoot")
+		if board:
+			board.call_deferred("start_match_host")

@@ -27,7 +27,7 @@
 [ext_resource type="Texture2D" uid="uid://crsjaljllq5jd" path="res://Asset_UWU/character/S__5128222_0.png" id="25_3hc0m"]
 [ext_resource type="Script" uid="uid://bicpp1st4ryts" path="res://SettingOverlay.gd" id="25_cg1r7"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
-[ext_resource type="Script" uid="uid://bln6nov77qlx7" path="res://ChatPanel.gd" id="28_3pgg5"]
+[ext_resource type="Script" path="res://ChatPanel.gd" id="28_3pgg5"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mrqbj"]
 content_margin_left = 8.0

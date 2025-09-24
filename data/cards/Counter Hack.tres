@@ -1,5 +1,6 @@
-[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3 uid="uid://cawt3j12wbqvr"]
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://cawt3j12wbqvr"]
 
+[ext_resource type="Texture2D" uid="uid://dqwtg6omg14fi" path="res://Asset_UWU/S__5169166_0.png" id="1_pa46j"]
 [ext_resource type="Script" uid="uid://dk6c6uvgn3brb" path="res://data/cards/card_data.gd" id="1_unxa0"]
 
 [resource]
@@ -8,5 +9,6 @@ id = "counter_shield"
 name = "Counter Hack"
 type = 1
 desc = "(สะท้อนการโจมตีของศัตรู ไปหาศัตรูเอง) ลูกเล่นการแฮ็กของนายแพรวพราวดีนี่ ฉันขอลองใช้ดูหน่อยละกัน"
-effect = "counter_shield"
+effect = "สะท้อนการโจมตี"
+icon = ExtResource("1_pa46j")
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

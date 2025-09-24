@@ -8,5 +8,5 @@ id = "steal_20Per"
 name = "Cryptoworm"
 type = 0
 desc = "(ขโมยเงิน 20% ของผู้เล่น) คริปโตนายน่ะ ฉันขอละนะ"
-effect = "steal_20Per"
+effect = "ขโมยเงิน 20%"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

@@ -8,5 +8,5 @@ id = "steal_50Per"
 name = "Root Access Heist"
 type = 0
 desc = "(ขโมยเงิน 50% ของผู้เล่น) ถือครองสิทธิ์ Admin ของผู้เล่นคนอื่น เซิฟเวอร์นี้เป็นของคุณแล้ว"
-effect = "steal_50Per"
+effect = "ขโมยเงิน 50%"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

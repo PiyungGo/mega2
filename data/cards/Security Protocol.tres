@@ -8,5 +8,5 @@ id = "shield_125"
 name = "Security Protocol"
 type = 1
 desc = "(ป้องกัน 125) คุณมีระบบป้องกันที่แข็งแกร่ง ไม่ให้แฮ็กง่ายๆหรอกนะ! "
-effect = "shield_125"
+effect = "ป้องกัน 125"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

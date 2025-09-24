@@ -45,7 +45,7 @@ id = "steal_50Per"
 name = "Root Access Heist"
 type = 0
 desc = "(ขโมยเงิน 50% ของผู้เล่นที่ถูกเลือก) ถือครองสิทธิ์ Admin ของผู้เล่นคนอื่น เซิฟเวอร์นี้เป็นของคุณแล้ว"
-effect = "steal_50%"
+effect = "steal_50Per"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
 
 [sub_resource type="Resource" id="Resource_jsdgl"]
@@ -54,7 +54,7 @@ id = "steal_20Per"
 name = "Cryptoworm Drain"
 type = 0
 desc = "(ขโมยเงิน 20% ของผู้เล่น) คริปโตนายน่ะ ฉันขอละนะ"
-effect = "steal_20%"
+effect = "steal_20Per"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"
 
 [sub_resource type="Resource" id="Resource_lu728"]

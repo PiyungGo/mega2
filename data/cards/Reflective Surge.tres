@@ -8,5 +8,5 @@ id = "all_def"
 name = "Reflective"
 type = 1
 desc = "(ป้องกันการโจมตีทุกรูปแบบ (แดง, ม่วงป้องกันได้หมด)) เราควรเตรียมพร้อมจากสถานการณ์ที่คาดไม่ถึง Safety First ไงละ!"
-effect = "all_def"
+effect = "ป้องกันการโจมตีทุกแบบ"
 metadata/_custom_type_script = "uid://dk6c6uvgn3brb"

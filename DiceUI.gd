@@ -18,6 +18,18 @@ var _is_rolling := false
 var _final_value := 0
 var _has_result := false           # ← จะ true หลังสุ่มเสร็จ
 
+# ตัวช่วยสำหรับเล่นเสียงครั้งเดียว
+func _play_once(stream: AudioStream, volume_db: float = 0.0, pitch: float = 1.0) -> void:
+	var p := AudioStreamPlayer.new()
+	add_child(p)
+	p.bus = "Master"               # หรือเปลี่ยนเป็นบัสอื่นถ้าคุณมี
+	p.volume_db = volume_db
+	p.pitch_scale = pitch
+	p.stream = stream
+	p.finished.connect(p.queue_free)
+	p.play()
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
@@ -61,6 +73,7 @@ func _on_roll_pressed() -> void:
 	if roll_button:
 		roll_button.disabled = true
 	randomize()
+	SFX.play_ui("dice")
 
 	var elapsed := 0.0
 	while elapsed < roll_duration:
@@ -80,6 +93,9 @@ func _on_roll_pressed() -> void:
 		close_btn.grab_focus()
 
 	emit_signal("rolled", _final_value)
+const SFX_DICE_START := preload("res://Asset_UWU/Sound/dice-142528.mp3")
+func play_dice_start(vol := -2.0): _play_once(SFX_DICE_START, vol)
+
 
 # (ออปชัน) กด Esc เพื่อปิดเมื่อมีผลลัพธ์แล้ว
 func _unhandled_input(e: InputEvent) -> void:

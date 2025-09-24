@@ -70,6 +70,10 @@ extends Control
 # ====== เสียงคลิก ======
 @onready var click_sfx: AudioStreamPlayer = get_node_or_null("ClickSfx")
 
+func _on_Button5_pressed() -> void:
+	open_join_overlay()
+
+
 # ====== สถานะ ======
 var _panels: Array[Panel] = []
 var _current_idx := 0
@@ -83,6 +87,38 @@ func _ready() -> void:
 	for p in _panels:
 		if p:
 			p.visible = false
+	if create_ui: create_ui.hide()
+	if join_ui:   join_ui.hide()
+
+	# ปุ่มใน overlay
+	if host_btn and not host_btn.pressed.is_connected(_on_host_pressed):
+		host_btn.pressed.connect(_on_host_pressed)
+	if local_btn and not local_btn.pressed.is_connected(_on_local_pressed):
+		local_btn.pressed.connect(_on_local_pressed)
+	if start_btn and not start_btn.pressed.is_connected(_on_start_pressed):
+		start_btn.pressed.connect(_on_start_pressed)
+	if cancel_host and not cancel_host.pressed.is_connected(_on_cancel_host):
+		cancel_host.pressed.connect(_on_cancel_host)
+
+	if scan_btn and not scan_btn.pressed.is_connected(_on_scan_pressed):
+		scan_btn.pressed.connect(_on_scan_pressed)
+	if join_btn and not join_btn.pressed.is_connected(_on_join_ip_pressed):
+		join_btn.pressed.connect(_on_join_ip_pressed)
+	if cancel_join and not cancel_join.pressed.is_connected(_on_cancel_join):
+		cancel_join.pressed.connect(_on_cancel_join)
+
+	# ฟัง event จาก Net.gd (autoload)
+	if Net:
+		if not Net.lobby_updated.is_connected(_on_lobby_updated):
+			Net.lobby_updated.connect(_on_lobby_updated)
+		if not Net.status_changed.is_connected(_on_net_status):
+			Net.status_changed.connect(_on_net_status)
+		if not Net.connected.is_connected(_on_net_connected):
+			Net.connected.connect(_on_net_connected)
+		if not Net.connection_failed.is_connected(_on_net_failed):
+			Net.connection_failed.connect(_on_net_failed)
+		if not Net.disconnected.is_connected(_on_net_disconnected):
+			Net.disconnected.connect(_on_net_disconnected)
 
 	_connect_buttons()
 	_wire_click_sounds()
@@ -204,3 +240,139 @@ func _on_any_button_pressed(_btn: Button) -> void:
 	if click_sfx and click_sfx.stream:
 		if click_sfx.playing: click_sfx.stop()
 		click_sfx.play()
+
+# ======== Multiplayer Overlays ========
+@onready var create_ui := $CreateOverlay
+@onready var join_ui   := $JoinOverlay
+
+# CreateOverlay nodes
+@onready var host_btn      := $CreateOverlay/VBox/HBox/HostButton
+@onready var local_btn     := $CreateOverlay/VBox/HBox/LocalButton
+@onready var host_status   := $CreateOverlay/VBox/StatusLabel
+@onready var start_btn     := $CreateOverlay/VBox/HBox2/StartBtn
+@onready var cancel_host   := $CreateOverlay/VBox/HBox2/CancelBtn
+
+# JoinOverlay nodes
+@onready var scan_btn      := $JoinOverlay/VBox/Tabs/LAN/ScanBtn
+@onready var ip_box        := $JoinOverlay/VBox/Tabs/Hamachi/IpBox
+@onready var join_btn      := $JoinOverlay/VBox/Tabs/Hamachi/JoinBtn
+@onready var join_status   := $JoinOverlay/VBox/StatusLabel
+@onready var cancel_join   := $JoinOverlay/VBox/CancelBtn
+
+
+# ===== เปิด overlay จากปุ่มเมนูหลัก =====
+# ต่อปุ่มเมนูหลักของคุณให้มาเรียก 2 ฟังก์ชันนี้ (ผ่าน Inspector หรือโค้ด)
+func open_create_overlay() -> void:
+	if create_ui:
+		create_ui.show()
+	if join_ui:
+		join_ui.hide()
+	if host_status:
+		host_status.text = ""
+	if main_button:
+		main_button.hide()
+
+func open_join_overlay() -> void:
+	if join_ui:
+		join_ui.show()
+	if create_ui:
+		create_ui.hide()
+	if join_status:
+		join_status.text = "กำลังค้นหา..."
+	if main_button:
+		main_button.hide()
+
+# ===== Handler: CreateOverlay =====
+func _on_local_pressed() -> void:
+	get_tree().change_scene_to_file("res://board.tscn")  # เล่นออฟไลน์
+
+func _on_host_pressed() -> void:
+	if Net:
+		Net.host_server("HOST")
+	if host_status:
+		host_status.text = "กำลังรอผู้เล่นคนอื่น (1/4)"
+	if start_btn:
+		start_btn.disabled = true
+	# (ตัวเลือก) เปิด Beacon LAN ถ้าใช้ LanDiscovery.gd
+	# if not has_node("LanBeacon") and ResourceLoader.exists("res://LanDiscovery.gd"):
+	#     var Beacon = load("res://LanDiscovery.gd").new()
+	#     Beacon.name = "LanBeacon"
+	#     add_child(Beacon)
+	#     Beacon.start_host_beacon()
+
+func _on_start_pressed() -> void:
+	if Net and Net.can_start_game():
+		Net.server_start_game()
+	elif host_status:
+		host_status.text = "ต้องมีผู้เล่นอย่างน้อย 2 คน"
+
+func _on_cancel_host() -> void:
+	if Net:
+		Net.leave()
+	if create_ui:
+		create_ui.hide()
+	main_button.show()
+
+# ===== Handler: JoinOverlay =====
+func _on_scan_pressed() -> void:
+	# ค้นหา host เฉพาะ LAN ปกติ (ไม่ใช่ Hamachi)
+	var ip := ""
+	if ResourceLoader.exists("res://LanDiscovery.gd"):
+		var LanDiscovery = load("res://LanDiscovery.gd")
+		ip = LanDiscovery.find_host(1.5)
+	if ip == "":
+		if join_status:
+			join_status.text = "ไม่พบโฮสต์ใน LAN — ถ้าใช้ Hamachi ให้กรอก IP ของโฮสต์แล้วกดเข้าร่วม"
+	else:
+		if join_status:
+			join_status.text = "พบโฮสต์: %s — กำลังเชื่อมต่อ..." % ip
+		if Net:
+			Net.join_server(ip, "Player")
+
+func _on_join_ip_pressed() -> void:
+	var ip: String = ""
+	if ip_box != null and is_instance_valid(ip_box):
+		ip = ip_box.text.strip_edges()
+
+	if ip == "":
+		if join_status:
+			join_status.text = "กรุณากรอก IP จาก Hamachi ของโฮสต์"
+		return
+
+	if Net:
+		Net.join_server(ip, "Player")
+	if join_status:
+		join_status.text = "กำลังค้นหา..."
+
+
+func _on_cancel_join() -> void:
+	if Net:
+		Net.leave()
+	if join_ui:
+		join_ui.hide()
+	main_button.show()
+
+# ===== Net callbacks =====
+func _on_lobby_updated(_p: Dictionary) -> void:
+	if host_status:
+		host_status.text = "กำลังรอผู้เล่นคนอื่น (%d/4)" % _p.size()
+	if start_btn:
+		start_btn.disabled = not Net.can_start_game()
+
+func _on_net_status(t: String) -> void:
+	if host_status: host_status.text = t
+	if join_status: join_status.text = t
+
+func _on_net_connected() -> void:
+	if join_status: join_status.text = "จับคู่สำเร็จแล้ว"
+
+func _on_net_failed() -> void:
+	if join_status: join_status.text = "เชื่อมต่อไม่สำเร็จ"
+
+func _on_net_disconnected() -> void:
+	if host_status: host_status.text = ""
+	if join_status: join_status.text = ""
+
+
+func _on_button_pressed() -> void:
+	open_create_overlay()

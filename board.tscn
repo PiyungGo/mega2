@@ -590,6 +590,7 @@ theme_override_constants/line_separation = 5
 theme_override_font_sizes/normal_font_size = 11
 bbcode_enabled = true
 fit_content = true
+scroll_following = true
 
 [node name="Input" type="HBoxContainer" parent="CanvasLayer/ChatPanel/VBoxContainer"]
 layout_mode = 2

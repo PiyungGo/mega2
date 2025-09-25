@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://cdwng6ow71d1r"]
+[gd_scene load_steps=38 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
 [ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
@@ -7,6 +7,22 @@
 [ext_resource type="Texture2D" uid="uid://ytw17afcyuxw" path="res://MONEY.png" id="3_wlsky"]
 [ext_resource type="Script" uid="uid://70urtdgl72k1" path="res://fullscreen_control.gd" id="4_12kdf"]
 [ext_resource type="AudioStream" uid="uid://du8hotevt6e6d" path="res://button-press-382713.mp3" id="6_wfgb2"]
+[ext_resource type="Texture2D" uid="uid://xmlh785nssh" path="res://Moneyhunt Game (2).png" id="7_ht6vt"]
+[ext_resource type="Texture2D" uid="uid://4ni3owa8y05u" path="res://1.PNG" id="7_whf7w"]
+[ext_resource type="Texture2D" uid="uid://d4fnc5xrrf3mc" path="res://Moneyhunt Game (1).png" id="8_bcalf"]
+[ext_resource type="Texture2D" uid="uid://chieytvmf43m3" path="res://2.PNG" id="8_gteid"]
+[ext_resource type="Texture2D" uid="uid://c7o5adxnekliy" path="res://Moneyhunt Game.png" id="9_6viy2"]
+[ext_resource type="Texture2D" uid="uid://cbssl3i1gywle" path="res://Capture.PNG" id="9_cq47v"]
+[ext_resource type="Texture2D" uid="uid://ckcgmhs64edeh" path="res://10.PNG" id="10_0q8yv"]
+[ext_resource type="Texture2D" uid="uid://b86cd1u6xy1d3" path="res://3.PNG" id="11_8qvsc"]
+[ext_resource type="Texture2D" uid="uid://b5ytcu1v4aqli" path="res://4.PNG" id="12_vchbk"]
+[ext_resource type="Texture2D" uid="uid://bxe2ld0jrknbl" path="res://8.PNG" id="13_mg4k4"]
+[ext_resource type="Texture2D" uid="uid://bal455xnpll3r" path="res://7.PNG" id="14_d8rbn"]
+[ext_resource type="Texture2D" uid="uid://bap7d2j0yyy7o" path="res://11.PNG" id="15_d8rbn"]
+[ext_resource type="Texture2D" uid="uid://db5as7q1gop3a" path="res://6.PNG" id="17_4ga1q"]
+[ext_resource type="Texture2D" uid="uid://cicv3w3pe2hqg" path="res://14.PNG" id="17_50c28"]
+[ext_resource type="Texture2D" uid="uid://nw2si5spd33x" path="res://5.PNG" id="21_nn1g5"]
+[ext_resource type="Texture2D" uid="uid://uil81g3jvbuw" path="res://13.png" id="22_50c28"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_5b7ti"]
 
@@ -378,7 +394,6 @@ theme_override_font_sizes/font_size = 20
 text = "Music"
 
 [node name="Panel2" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -436,10 +451,10 @@ anchor_bottom = 0.5
 offset_left = 229.0
 offset_top = -2.5
 offset_right = 777.0
-offset_bottom = 184.5
+offset_bottom = 166.5
 grow_vertical = 2
 theme_override_font_sizes/font_size = 27
-text = "หน้าเมนูหลักของเกมประกอบไปด้วย 4 ปุ่ม ได้แก่  
+text = "หน้าเมนูหลักของเกมประกอบไปด้วย 5 ปุ่ม ได้แก่  
 
 "
 horizontal_alignment = 1
@@ -450,10 +465,10 @@ layout_mode = 1
 anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
-offset_left = -9.0
-offset_top = 290.5
-offset_right = 460.0
-offset_bottom = 435.5
+offset_left = 30.0
+offset_top = 298.5
+offset_right = 403.0
+offset_bottom = 443.5
 grow_vertical = 2
 theme_override_font_sizes/font_size = 17
 text = "1.สร้างห้อง 
@@ -461,15 +476,16 @@ text = "1.สร้างห้อง
 "
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 3
 
 [node name="GuideText3" type="Label" parent="Panel2/Label/Pages"]
 layout_mode = 1
 anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
-offset_left = 451.0
+offset_left = 570.0
 offset_top = 301.5
-offset_right = 1097.0
+offset_right = 940.0
 offset_bottom = 446.5
 grow_vertical = 2
 theme_override_font_sizes/font_size = 17
@@ -482,21 +498,22 @@ vertical_alignment = 1
 
 [node name="GuideImage" type="TextureRect" parent="Panel2/Label/Pages"]
 layout_mode = 0
-offset_left = 66.0
-offset_top = 186.0
-offset_right = 378.0
-offset_bottom = 394.0
-texture = ExtResource("2_xwd2w")
+offset_left = 8.0
+offset_top = 188.0
+offset_right = 511.0
+offset_bottom = 410.0
+texture = ExtResource("7_whf7w")
 expand_mode = 3
 stretch_mode = 6
 
 [node name="GuideImage2" type="TextureRect" parent="Panel2/Label/Pages"]
 layout_mode = 0
-offset_left = 600.0
-offset_top = 186.0
-offset_right = 912.0
-offset_bottom = 391.0
-texture = ExtResource("2_xwd2w")
+offset_left = 515.0
+offset_top = 169.0
+offset_right = 980.063
+offset_bottom = 618.0
+scale = Vector2(1.02805, 0.530023)
+texture = ExtResource("8_gteid")
 expand_mode = 3
 stretch_mode = 6
 
@@ -539,7 +556,6 @@ theme_override_font_sizes/font_size = 30
 text = "Back"
 
 [node name="Panel3" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -591,11 +607,11 @@ offset_bottom = 163.0
 
 [node name="GuideText1" type="Label" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = -180.0
-offset_top = 299.0
-offset_right = 549.0
-offset_bottom = 434.0
-theme_override_font_sizes/font_size = 17
+offset_left = 49.0
+offset_top = 323.0
+offset_right = 334.0
+offset_bottom = 437.0
+theme_override_font_sizes/font_size = 20
 text = "3.ตั้งค่า 
 จะมีระบบลดเสียงเพิ่มเสียง 
 และระบบเต็มหรือย่อหน้าจอ"
@@ -604,55 +620,46 @@ vertical_alignment = 1
 
 [node name="GuideText2" type="Label" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = 535.0
-offset_top = 307.0
-offset_right = 1091.0
-offset_bottom = 432.0
-theme_override_font_sizes/font_size = 17
+offset_left = 359.0
+offset_top = 324.0
+offset_right = 646.0
+offset_bottom = 449.0
+theme_override_font_sizes/font_size = 20
 text = "4.คู่มือการเล่น 
-จะแสดงข้อความอธิบายการเล่นคร่าวๆภายในเกม 
+จะแสดงข้อความอธิบายการเล่นภายในเกม 
 ให้ผู้เล่นเข้าใจหลักการเล่นเกม"
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 3
 
 [node name="GuideText3" type="Label" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = 215.0
-offset_top = 413.0
-offset_right = 771.0
-offset_bottom = 538.0
-theme_override_font_sizes/font_size = 18
+offset_left = 648.0
+offset_top = 186.0
+offset_right = 996.0
+offset_bottom = 311.0
+theme_override_font_sizes/font_size = 20
 text = "5.ออก "
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GuideImage1" type="TextureRect" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = 49.0
+offset_left = 38.0
 offset_top = 125.0
-offset_right = 333.0
+offset_right = 348.263
 offset_bottom = 320.0
-texture = ExtResource("2_xwd2w")
+texture = ExtResource("9_cq47v")
 expand_mode = 3
 stretch_mode = 6
 
 [node name="GuideImage2" type="TextureRect" parent="Panel3/Label/Pages"]
 layout_mode = 0
-offset_left = 660.0
-offset_top = 124.0
-offset_right = 951.0
-offset_bottom = 324.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
-stretch_mode = 6
-
-[node name="GuideImage3" type="TextureRect" parent="Panel3/Label/Pages"]
-layout_mode = 0
-offset_left = 363.0
-offset_top = 309.0
-offset_right = 613.0
-offset_bottom = 448.0
-texture = ExtResource("2_xwd2w")
+offset_left = 357.0
+offset_top = 126.0
+offset_right = 645.0
+offset_bottom = 322.0
+texture = ExtResource("10_0q8yv")
 expand_mode = 3
 stretch_mode = 6
 
@@ -695,7 +702,6 @@ theme_override_font_sizes/font_size = 30
 text = "Back"
 
 [node name="Panel4" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -763,32 +769,31 @@ vertical_alignment = 1
 
 [node name="GuideImage2" type="TextureRect" parent="Panel4/Label/Pages"]
 layout_mode = 0
-offset_left = 53.0
-offset_top = 345.0
-offset_right = 320.0
-offset_bottom = 483.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 124.0
+offset_top = 311.0
+offset_right = 278.0
+offset_bottom = 488.0
+texture = ExtResource("11_8qvsc")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="GuideImage3" type="TextureRect" parent="Panel4/Label/Pages"]
 layout_mode = 0
-offset_left = 363.0
-offset_top = 345.0
-offset_right = 630.0
-offset_bottom = 483.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 403.0
+offset_top = 311.0
+offset_right = 584.0
+offset_bottom = 481.0
+texture = ExtResource("12_vchbk")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="GuideImage4" type="TextureRect" parent="Panel4/Label/Pages"]
-layout_mode = 0
-offset_left = 697.0
-offset_top = 345.0
-offset_right = 964.0
-offset_bottom = 483.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 708.0
+offset_top = 311.0
+offset_right = 889.0
+offset_bottom = 481.0
+texture = ExtResource("13_mg4k4")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel4" groups=["ui_click"]]
@@ -830,7 +835,6 @@ theme_override_font_sizes/font_size = 30
 text = "Back"
 
 [node name="Panel5" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -884,7 +888,7 @@ offset_bottom = 163.0
 layout_mode = 0
 offset_left = -3.0
 offset_top = 22.0
-offset_right = 969.0
+offset_right = 998.0
 offset_bottom = 257.0
 theme_override_font_sizes/font_size = 26
 text = "ขั้นตอนการเล่น"
@@ -894,9 +898,9 @@ vertical_alignment = 1
 [node name="GuideText4" type="Label" parent="Panel5/Label/Pages"]
 layout_mode = 0
 offset_left = -103.0
-offset_top = 188.0
+offset_top = 183.0
 offset_right = 430.0
-offset_bottom = 423.0
+offset_bottom = 418.0
 theme_override_font_sizes/font_size = 16
 text = "เริ่มแรกหลังจาก
 เข้ามาในเกมผู้เล่นจะได้รับการ์ด5ใบแบบสุ่ม"
@@ -911,7 +915,7 @@ offset_right = 745.0
 offset_bottom = 422.0
 theme_override_font_sizes/font_size = 16
 text = "หากผู้เล่นเดินไปถึงที่ตัวอาคารจะเกิดแอ็คชัน
-ที่แตกต่างกันไปตามพื้นที่หรือมีการให้สุ่มไพ่ลึกลับ"
+ที่แตกต่างกันไปตามพื้นที่และมีไพ่เพิ่มเข้าแบบสุ่ม"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -929,10 +933,10 @@ vertical_alignment = 1
 
 [node name="GuideText7" type="Label" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 132.0
-offset_top = 371.0
-offset_right = 531.0
-offset_bottom = 559.0
+offset_left = 124.0
+offset_top = 381.0
+offset_right = 523.0
+offset_bottom = 569.0
 theme_override_font_sizes/font_size = 17
 text = "ผู้เล่นต้องทอยลูกเต๋าเพื่อสุ่มจำนวนการเดิน"
 horizontal_alignment = 1
@@ -952,53 +956,51 @@ vertical_alignment = 1
 
 [node name="GuideImage3" type="TextureRect" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 21.0
+offset_top = 199.0
+offset_right = 318.0
+offset_bottom = 260.0
+texture = ExtResource("14_d8rbn")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="GuideImage4" type="TextureRect" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 378.0
-offset_top = 170.0
-offset_right = 613.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
-stretch_mode = 6
-
-[node name="GuideImage5" type="TextureRect" parent="Panel5/Label/Pages"]
-layout_mode = 0
-offset_left = 708.0
-offset_top = 165.0
-offset_right = 943.0
+offset_left = 414.0
+offset_top = 166.0
+offset_right = 575.0
 offset_bottom = 271.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+texture = ExtResource("15_d8rbn")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="GuideImage6" type="TextureRect" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 215.0
-offset_top = 345.0
-offset_right = 450.0
-offset_bottom = 451.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 276.0
+offset_top = 330.0
+offset_right = 390.0
+offset_bottom = 446.0
+texture = ExtResource("11_8qvsc")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="GuideImage7" type="TextureRect" parent="Panel5/Label/Pages"]
 layout_mode = 0
-offset_left = 549.0
-offset_top = 345.0
-offset_right = 784.0
-offset_bottom = 451.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 658.0
+offset_top = 343.0
+offset_right = 708.0
+offset_bottom = 439.0
+texture = ExtResource("17_4ga1q")
+expand_mode = 1
 stretch_mode = 6
+
+[node name="GuideImage8" type="TextureRect" parent="Panel5/Label/Pages"]
+offset_left = 785.0
+offset_top = 149.0
+offset_right = 917.0
+offset_bottom = 273.0
+texture = ExtResource("17_50c28")
+expand_mode = 1
 
 [node name="Back2" type="Button" parent="Panel5" groups=["ui_click"]]
 layout_mode = 1
@@ -1089,24 +1091,40 @@ offset_top = -2.0
 offset_right = 336.0
 offset_bottom = 163.0
 
-[node name="GuideText4" type="Label" parent="Panel6/Label/Pages"]
+[node name="GuideText5" type="Label" parent="Panel6/Label/Pages"]
 layout_mode = 0
-offset_left = -3.0
-offset_top = 22.0
-offset_right = 969.0
-offset_bottom = 257.0
+offset_left = -6.0
+offset_top = 44.0
+offset_right = 993.0
+offset_bottom = 279.0
 theme_override_font_sizes/font_size = 26
-text = "6"
+text = "การ์ดภายในเกม"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="GuideText4" type="Label" parent="Panel6/Label/Pages"]
+layout_mode = 0
+offset_left = 535.0
+offset_top = 226.0
+offset_right = 986.0
+offset_bottom = 430.0
+theme_override_font_sizes/font_size = 20
+text = "1.การ์โจมตี คือไพ่สีแดงที่สามารถปล้นเงินของศัตรูมาเป็นของตัวเองได้
+
+2.การ์ดป้องกัน คือไพ่สีฟ้าที่สามารถป้องกันเงินจากการปล้นได้
+
+3.การ์ดลึกลับ คือไพ่สีม่วงที่มีความสามารถแตกต่างออกไปจากการปล้นเงินหรือป้องกันเงิน เช่น การเลือกวาร์ป"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="GuideImage4" type="TextureRect" parent="Panel6/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
+offset_left = 4.0
+offset_top = 172.0
+offset_right = 546.222
+offset_bottom = 477.0
+texture = ExtResource("7_ht6vt")
 expand_mode = 3
 stretch_mode = 6
 
@@ -1199,24 +1217,38 @@ offset_top = -2.0
 offset_right = 336.0
 offset_bottom = 163.0
 
-[node name="GuideText5" type="Label" parent="Panel7/Label/Pages"]
+[node name="GuideText4" type="Label" parent="Panel7/Label/Pages"]
 layout_mode = 0
 offset_left = -3.0
 offset_top = 22.0
-offset_right = 969.0
+offset_right = 996.0
 offset_bottom = 257.0
 theme_override_font_sizes/font_size = 26
-text = "ขั้นตอนการเล่น7"
+text = "การ์ดภายในเกม"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="GuideText5" type="Label" parent="Panel7/Label/Pages"]
+layout_mode = 0
+offset_left = 502.0
+offset_top = 184.0
+offset_right = 996.0
+offset_bottom = 469.0
+theme_override_font_sizes/font_size = 20
+text = "อาคารต่างๆแต่ละที่จะมีแอ็คชันที่ต่างกัน
+
+ เช่น ธนาคารให้เงิน200"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="GuideImage5" type="TextureRect" parent="Panel7/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
+offset_left = -3.0
+offset_top = 166.0
+offset_right = 568.0
+offset_bottom = 491.0
+texture = ExtResource("8_bcalf")
 expand_mode = 3
 stretch_mode = 6
 
@@ -1309,24 +1341,38 @@ offset_top = -2.0
 offset_right = 336.0
 offset_bottom = 163.0
 
-[node name="GuideText6" type="Label" parent="Panel8/Label/Pages"]
+[node name="GuideText7" type="Label" parent="Panel8/Label/Pages"]
 layout_mode = 0
 offset_left = -3.0
 offset_top = 22.0
-offset_right = 969.0
+offset_right = 996.0
 offset_bottom = 257.0
 theme_override_font_sizes/font_size = 26
-text = "8"
+text = "บทบาท"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="GuideText6" type="Label" parent="Panel8/Label/Pages"]
+layout_mode = 0
+offset_left = 11.0
+offset_top = 170.0
+offset_right = 470.0
+offset_bottom = 465.0
+theme_override_font_sizes/font_size = 20
+text = "ในเกมนี้จะมีอยู่4บทบาท ได้แก่ พลเมืองดี คอลเซนเตอร์ 
+
+แฮ็กเกอร์ และตำรวจไซเบอร์"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="GuideImage6" type="TextureRect" parent="Panel8/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
+offset_left = 474.0
+offset_top = 163.0
+offset_right = 998.444
+offset_bottom = 458.0
+texture = ExtResource("9_6viy2")
 expand_mode = 3
 stretch_mode = 6
 
@@ -1419,25 +1465,39 @@ offset_top = -2.0
 offset_right = 336.0
 offset_bottom = 163.0
 
-[node name="GuideText7" type="Label" parent="Panel9/Label/Pages"]
+[node name="GuideText6" type="Label" parent="Panel9/Label/Pages"]
 layout_mode = 0
 offset_left = -3.0
 offset_top = 22.0
-offset_right = 969.0
+offset_right = 996.0
 offset_bottom = 257.0
 theme_override_font_sizes/font_size = 26
-text = "9"
+text = "ระบบโจมตี/ป้องกัน"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="GuideText7" type="Label" parent="Panel9/Label/Pages"]
+layout_mode = 0
+offset_left = 56.0
+offset_top = 182.0
+offset_right = 475.0
+offset_bottom = 444.0
+theme_override_font_sizes/font_size = 20
+text = "-ระบบโจมตีเมื่อเราใช้การ์ดสีแดงจะนำเงินของศัตรูมาเป็นของเราได้
+
+-ระบบป้องกันเมื่อเราใช้การ์ดสีฟ้าจะเป็นการป้องกันเงินของเราเอาไว้"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="GuideImage7" type="TextureRect" parent="Panel9/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 548.0
+offset_top = 211.0
+offset_right = 961.0
+offset_bottom = 419.0
+texture = ExtResource("21_nn1g5")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel9" groups=["ui_click"]]
@@ -1529,25 +1589,39 @@ offset_top = -2.0
 offset_right = 336.0
 offset_bottom = 163.0
 
-[node name="GuideText8" type="Label" parent="Panel10/Label/Pages"]
+[node name="GuideText9" type="Label" parent="Panel10/Label/Pages"]
 layout_mode = 0
-offset_left = 59.0
-offset_top = 159.0
-offset_right = 1031.0
-offset_bottom = 394.0
+offset_left = -2.0
+offset_top = 21.0
+offset_right = 998.0
+offset_bottom = 256.0
 theme_override_font_sizes/font_size = 26
-text = "10"
+text = "ระบบสุ่มการ์ด และแสดงข้อมูลของการ์ด"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="GuideText8" type="Label" parent="Panel10/Label/Pages"]
+layout_mode = 0
+offset_left = 17.0
+offset_top = 188.0
+offset_right = 506.0
+offset_bottom = 444.0
+theme_override_font_sizes/font_size = 20
+text = "เมื่อผู้เล่นเดินทางไปที่ตึกหรืออาคารภายในแมพการ์ดจะเด้งเข้าตัวให้แบบสุ่ม
+
+ข้อมูลของการ์ดจะสามารถดูได้จากการนำเมาส์ชี้ค้างที่การ์ด"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="GuideImage8" type="TextureRect" parent="Panel10/Label/Pages"]
 layout_mode = 0
-offset_left = 55.0
-offset_top = 170.0
-offset_right = 290.0
-offset_bottom = 276.0
-texture = ExtResource("2_xwd2w")
-expand_mode = 3
+offset_left = 564.0
+offset_top = 203.0
+offset_right = 975.0
+offset_bottom = 434.0
+texture = ExtResource("22_50c28")
+expand_mode = 1
 stretch_mode = 6
 
 [node name="Back2" type="Button" parent="Panel10" groups=["ui_click"]]

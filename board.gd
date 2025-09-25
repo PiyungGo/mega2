@@ -334,9 +334,10 @@ func _validate_move(piece: Node, target_cell: Vector2i) -> bool:
     # TODO: ใส่กติกาจริงทีหลัง (เช็คเป็นตา, ระยะเดิน, ช่องว่าง, ฯลฯ)
     return true
 
-func _apply_move_server(piece: Node, target_cell: Vector2i) -> void:
-    # TODO: อัปเดต state จริงฝั่งเซิร์ฟเวอร์ (ตำแหน่งกริด, แต้มเดิน, ตรวจชน ฯลฯ)
-    pass
+func _apply_move_server(piece: Node, to_cell: Vector2i) -> void:
+    # อัปเดต state กลาง (อย่างน้อยตำแหน่งใน piece_cells)
+    piece_cells[piece] = to_cell
+    # ถ้ามีเงิน/เอฟเฟกต์ช่อง ก็อัปเดตที่นี่
 
 @rpc("authority","reliable","call_local")
 func _apply_move_client(piece_path: NodePath, target_cell: Vector2i) -> void:
@@ -357,39 +358,58 @@ func _grid_to_world(cell: Vector2i) -> Vector2:
 
 
 func _on_board_click(piece: Node, target_cell: Vector2i) -> void:
-    # ป้องกัน client ควบคุมชิ้นที่ตัวเองไม่ได้เป็นเจ้าของ
-    if not piece.is_multiplayer_authority():
-        return
-    # อย่าทำ state change ตรง ๆ บน client → ส่งคำขอไป server
-    request_move_rpc(piece.get_instance_id(), target_cell)
+    if not piece.is_multiplayer_authority(): return
+    rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
 
 func _try_control(piece: Node, target_cell: Vector2i) -> void:
     if not piece.is_multiplayer_authority(): return
     if multiplayer.get_unique_id() != current_turn_peer_id: return
 
     var server_id := 1  # Godot ใช้ 1 เป็น peer เซิร์ฟเวอร์
-    rpc_id(server_id, "request_move_rpc", piece.get_instance_id(), target_cell)
+    rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
     print("send to server", multiplayer.get_unique_id())
 
+
+# ===== Helpers: legal move =====
+func _is_legal_move(piece: Node, target_cell: Vector2i) -> bool:
+    # 1) ต้องรู้ตำแหน่งปัจจุบันของชิ้น (อิงจาก dict ที่ใช้กันอยู่)
+    if not piece_cells.has(piece):
+        return false
+    var from: Vector2i = piece_cells[piece]
+
+    # 2) ขอบเขตบอร์ด
+    if target_cell.x < 0 or target_cell.y < 0:
+        return false
+    if target_cell.x >= BOARD_SIZE or target_cell.y >= BOARD_SIZE:
+        return false
+
+    # 3) ระยะทางแบบแมนฮัตตัน (ตรงกับระบบเดินของเกม)
+
+    var dist: int = absi(from.x - target_cell.x) + absi(from.y - target_cell.y)
+    if dist < 1 or dist > MAX_STEPS:
+        return false
+
+    # 4) (ทางเลือก) กันทับเพื่อน หรือช่องต้องห้าม — เติมตามโครงสร้างที่มี
+    # if occupied_by_ally(target_cell): return false
+    # if blocked_cells.has(target_cell): return false
+
+    return true
+
+
 # Client → Server
-@rpc("any_peer","reliable")
-func request_move_rpc(piece_id:int, target_cell:Vector2i) -> void:
+@rpc("any_peer", "reliable")
+func request_move_rpc(piece_path: NodePath, target_cell: Vector2i) -> void:
     if not multiplayer.is_server(): return
 
-    var piece := instance_from_id(piece_id)
+    var piece := get_node_or_null(piece_path)
     if piece == null: return
 
     # ผู้ส่งต้องเป็นเจ้าของชิ้น
-    if not _is_sender_author_of(piece):
-        return
+    if not _is_sender_author_of(piece): return
+    if not _is_legal_move(piece, target_cell): return
 
-    if not _validate_move(piece, target_cell):
-        return
-
-    _apply_move_server(piece, target_cell)  # อัปเดต state บนเซิร์ฟเวอร์
-
-    # กระจายการอัปเดตภาพ/สถานะไปทุกเครื่อง (รวมเซิร์ฟเวอร์ด้วย)
-    rpc("_apply_move_client", piece.get_path(), target_cell)
+    _apply_move_server(piece, target_cell)               # อัปเดต state ฝั่งเซิร์ฟเวอร์
+    rpc("_apply_move_client", piece.get_path(), target_cell)  # กระจายให้ทุกเครื่อง
     print("server got move from", multiplayer.get_remote_sender_id())
 
 func _is_sender_author_of(piece: Node) -> bool:

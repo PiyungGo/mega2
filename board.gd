@@ -354,8 +354,9 @@ func _apply_move_server(piece: Node, to_cell: Vector2i) -> void:
 func _apply_move_client(piece_path: NodePath, target_cell: Vector2i) -> void:
     var piece := get_node_or_null(piece_path)
     if piece == null: return
-    # ห้ามแก้ state logic ที่นี่ ให้ทำเฉพาะภาพ/อนิเมชัน
+    # ทำเฉพาะภาพ/แอนิเมชัน (state logic ทำแล้วบนเซิร์ฟเวอร์)
     _move_piece_visual_only(piece, target_cell)
+
 
 
 func _move_piece_visual_only(piece: Node, target_cell: Vector2i) -> void:
@@ -372,13 +373,15 @@ func _on_board_click(piece: Node, target_cell: Vector2i) -> void:
     if not piece.is_multiplayer_authority(): return
     rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
 
+
 func _try_control(piece: Node, target_cell: Vector2i) -> void:
-    # guard ฝั่งไคลเอนต์
+    # guard ฝั่งไคลเอนต์: ต้องเป็นเจ้าของชิ้น และต้องเป็น “ตา” ของเรา
     if not piece.is_multiplayer_authority(): return
     if multiplayer.get_unique_id() != current_turn_peer_id: return
 
-    var server_id := 1  # Godot ใช้ 1 เป็น peer เซิร์ฟเวอร์
-    rpc_id(1, "request_move_rpc", piece.get_instance_id(), target_cell)
+    # ✅ ส่งไปหาเซิร์ฟเวอร์ (peer 1) ด้วย NodePath เท่านั้น
+    rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
+
     print("send to server", multiplayer.get_unique_id())
 
 
@@ -410,32 +413,26 @@ func _is_legal_move(piece: Node, target_cell: Vector2i) -> bool:
 
 # Client → Server
 @rpc("any_peer", "reliable")
-func request_move_rpc(piece_id:int, target_cell:Vector2i) -> void:
+func request_move_rpc(piece_path: NodePath, target_cell: Vector2i) -> void:
     if not multiplayer.is_server(): return
+    var piece := get_node_or_null(piece_path)
 
-    var piece := instance_from_id(piece_id)
     if piece == null: return
 
-    # ส่งมาจากใคร
     var sender := multiplayer.get_remote_sender_id()
 
-    # ต้องเป็น “เจ้าของชิ้น” เท่านั้น
-    if piece.get_multiplayer_authority() != sender:
-        return
+    # ✅ สิทธิ์ต้องตรง และต้องเป็น “ตาของเขา”
+    if piece.get_multiplayer_authority() != sender: return
+    if sender != current_turn_peer_id: return
 
-    # ต้องเป็น “ตาของ sender” ด้วย
-    if sender != current_turn_peer_id:
-        return
+    if not _validate_move(piece, target_cell): return
 
-    # ตรวจเงื่อนไขเกม
-    if not _validate_move(piece, target_cell):
-        return
-
-    # ✅ อัปเดต state ฝั่งเซิร์ฟเวอร์เท่านั้น
+    # อัปเดต state บนเซิร์ฟเวอร์เท่านั้น
     _apply_move_server(piece, target_cell)
 
-    # ✅ บรอดแคสต์ผลไป “ทุกเครื่อง” (รวมเซิร์ฟเวอร์)
-    rpc("_apply_move_client", piece.get_path(), target_cell)
+    # ✅ บรอดแคสต์ผลกลับทุกเครื่อง (รวมเซิร์ฟเวอร์)
+    rpc("_apply_move_client", piece_path, target_cell)
+
 
     print("server got move from", multiplayer.get_remote_sender_id())
 

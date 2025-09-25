@@ -1646,6 +1646,7 @@ disabled = true
 text = "เริ่มเกม"
 
 [node name="JoinOverlay" type="Panel" parent="."]
+visible = false
 layout_mode = 1
 offset_left = 687.0
 offset_top = 344.0

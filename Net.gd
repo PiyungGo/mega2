@@ -11,7 +11,7 @@ signal begin_game(config: Dictionary)       # ส่งก่อนเปลี�
 const PORT := 24142
 const MAX_CLIENTS := 3              # จำนวน client ไม่รวม server ⇒ รวมสูงสุด = 4
 const PIECES := ["Good", "Call", "Hacker", "Police"]
-
+@export var board_scene_path: String = "res://board.tscn"
 var peer: ENetMultiplayerPeer
 var is_host := false
 var players := {}                   # peer_id -> {name:String, piece:String}
@@ -41,11 +41,22 @@ func host_server(host_name: String = "HOST") -> void:
 
 func can_start_game() -> bool:
 	# ผู้เล่นที่อยู่ในห้อง (รวม host) ต้อง >= 2
-	return players.size() >= 2
+	return multiplayer.is_server() and (multiplayer.get_peers().size() >= 1)
+	
+@rpc("any_peer", "reliable", "call_local")
+func _client_start_game(scene_path: String) -> void:
+	# ทุกเครื่อง (โฮสต์/ไคลเอนต์) เข้าฉากบอร์ด
+	get_tree().change_scene_to_file(scene_path)
+	await get_tree().process_frame
+	var board := get_tree().current_scene
+	# ให้ "เฉพาะเซิร์ฟเวอร์" เป็นคนเริ่มแมตช์ (ตั้ง owner, คัดตัวที่ไม่มีผู้เล่น, สร้างลำดับตา)
+	if multiplayer.is_server() and board and board.has_method("start_match_host"):
+		board.call_deferred("start_match_host")
 
 func server_start_game() -> void:
-	if not is_host or not can_start_game():
+	if not multiplayer.is_server():
 		return
+	rpc("_client_start_game", board_scene_path)
 	# แจกตัวละครตามลำดับเข้าห้อง
 	var ids := players.keys()
 	ids.sort()  # peer_id ของ host มักเป็น 1

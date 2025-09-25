@@ -1,4 +1,4 @@
-[gd_scene load_steps=63 format=3 uid="uid://djwjy7vrbuv7s"]
+[gd_scene load_steps=64 format=3 uid="uid://djwjy7vrbuv7s"]
 
 [ext_resource type="Texture2D" uid="uid://2sxuf6xnidyo" path="res://Asset_UWU/S__4415495.png" id="1_psm7c"]
 [ext_resource type="Script" uid="uid://olbdk4ahxqbw" path="res://board.gd" id="2_8l818"]
@@ -38,6 +38,7 @@
 [ext_resource type="Script" uid="uid://bicpp1st4ryts" path="res://SettingOverlay.gd" id="25_cg1r7"]
 [ext_resource type="Texture2D" uid="uid://c81tc1eqwjrwj" path="res://Asset_UWU/character/S__5128220_0.png" id="26_6cqox"]
 [ext_resource type="Script" uid="uid://bln6nov77qlx7" path="res://ChatPanel.gd" id="28_3pgg5"]
+[ext_resource type="FontFile" uid="uid://dhtd3uig8jabu" path="res://FC Subject [Non-commercial use] Bold ver 1.00.ttf" id="37_xoux0"]
 [ext_resource type="Script" uid="uid://clw1skjyksiw0" path="res://SFX.gd" id="39_m7p32"]
 [ext_resource type="Script" uid="uid://du3lbum4ot6sv" path="res://OptionWindow.gd" id="39_u3ggn"]
 [ext_resource type="AudioStream" uid="uid://5oc0urpknhix" path="res://Asset_UWU/Sound/うおーさおー.mp3" id="40_m2spp"]
@@ -273,6 +274,7 @@ offset_top = -2.10949
 offset_right = 91.4273
 offset_bottom = 20.8905
 scale = Vector2(0.294674, 0.294674)
+theme_override_fonts/font = ExtResource("37_xoux0")
 text = "คุณชนะแล้ว"
 horizontal_alignment = 1
 
@@ -318,13 +320,15 @@ scale = Vector2(1.12, 1.12)
 theme_override_constants/separation = 30
 
 [node name="ProfileCard2" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+custom_minimum_size = Vector2(0, 93.655)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_mrqbj")
 
 [node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard2"]
+custom_minimum_size = Vector2(85.07, 0)
 layout_mode = 2
-theme_override_constants/separation = -5
-alignment = 2
+theme_override_constants/separation = 7
+alignment = 1
 
 [node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard2/Info"]
 layout_mode = 2
@@ -334,15 +338,17 @@ layout_mode = 2
 
 [node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard2/Info"]
 layout_mode = 2
-theme_override_constants/line_spacing = -5
+theme_override_constants/line_spacing = 5
 
 [node name="ProfileCard3" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+custom_minimum_size = Vector2(0, 93.655)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_cg1r7")
 
 [node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard3"]
+custom_minimum_size = Vector2(85.07, 0)
 layout_mode = 2
-theme_override_constants/separation = -5
+theme_override_constants/separation = 7
 
 [node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard3/Info"]
 layout_mode = 2
@@ -352,15 +358,17 @@ layout_mode = 2
 
 [node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard3/Info"]
 layout_mode = 2
-theme_override_constants/line_spacing = -5
+theme_override_constants/line_spacing = 5
 
 [node name="ProfileCard4" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+custom_minimum_size = Vector2(0, 93.655)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_65toc")
 
 [node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard4"]
+custom_minimum_size = Vector2(85.07, 0)
 layout_mode = 2
-theme_override_constants/separation = -5
+theme_override_constants/separation = 7
 
 [node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard4/Info"]
 layout_mode = 2
@@ -370,15 +378,17 @@ layout_mode = 2
 
 [node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard4/Info"]
 layout_mode = 2
-theme_override_constants/line_spacing = -5
+theme_override_constants/line_spacing = 5
 
 [node name="ProfileCard1" type="PanelContainer" parent="CanvasLayer/PlayerProfiles"]
+custom_minimum_size = Vector2(0, 93.655)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pwkvm")
 
 [node name="Info" type="VBoxContainer" parent="CanvasLayer/PlayerProfiles/ProfileCard1"]
+custom_minimum_size = Vector2(85.07, 0)
 layout_mode = 2
-theme_override_constants/separation = -5
+theme_override_constants/separation = 7
 
 [node name="NameLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard1/Info"]
 layout_mode = 2
@@ -388,7 +398,7 @@ layout_mode = 2
 
 [node name="JobLabel" type="Label" parent="CanvasLayer/PlayerProfiles/ProfileCard1/Info"]
 layout_mode = 2
-theme_override_constants/line_spacing = -5
+theme_override_constants/line_spacing = 5
 
 [node name="TopBar" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -405,8 +415,9 @@ scale = Vector2(3.2, 3.2)
 [node name="RoundLabel" type="Label" parent="CanvasLayer/TopBar"]
 layout_mode = 0
 offset_left = -41.875
+offset_top = 3.75
 offset_right = -1.875
-offset_bottom = 23.0
+offset_bottom = 26.75
 scale = Vector2(0.4875, 0.4875)
 
 [node name="SettingsBtn" type="Button" parent="CanvasLayer/TopBar"]
@@ -575,8 +586,10 @@ layout_mode = 2
 [node name="Log" type="RichTextLabel" parent="CanvasLayer/ChatPanel/VBoxContainer/LogScroll"]
 custom_minimum_size = Vector2(215.76, 122.005)
 layout_mode = 2
+theme_override_constants/line_separation = 5
 theme_override_font_sizes/normal_font_size = 11
 bbcode_enabled = true
+fit_content = true
 
 [node name="Input" type="HBoxContainer" parent="CanvasLayer/ChatPanel/VBoxContainer"]
 layout_mode = 2
@@ -733,9 +746,9 @@ text = "Music"
 
 [node name="TurnLabel" type="Label" parent="."]
 offset_left = 3934.0
-offset_top = -223.0
+offset_top = -127.0
 offset_right = 3974.0
-offset_bottom = -200.0
+offset_bottom = -104.0
 scale = Vector2(14.6835, 14.6835)
 
 [node name="Obstacles" type="Node2D" parent="."]
@@ -767,6 +780,7 @@ stream = ExtResource("40_m2spp")
 volume_db = -12.0
 autoplay = true
 bus = &"SFX"
+parameters/looping = true
 
 [node name="AudioListener2D" type="AudioListener2D" parent="."]
 position = Vector2(967, 472)

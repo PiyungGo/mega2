@@ -50,13 +50,14 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -3.14606
-offset_top = -74.4242
-offset_right = 42.8539
-offset_bottom = -47.4242
+offset_left = -30.1796
+offset_top = -48.2873
+offset_right = 15.8204
+offset_bottom = 67.1909
 grow_horizontal = 2
 grow_vertical = 2
 scale = Vector2(1.62432, 1.62432)
+theme_override_font_sizes/font_size = 60
 horizontal_alignment = 3
 
 [node name="Rollbutton" type="Button" parent="Panel"]

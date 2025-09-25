@@ -161,8 +161,8 @@ func _connect_buttons() -> void:
 
 # ─────────────────────────────────────────────────────────────
 # เมนูหลัก
-func _on_Start_pressed() -> void:
-	get_tree().change_scene_to_file("res://board.tscn")
+
+
 
 func _on_setting_pressed() -> void:
 	main_button.visible = false
@@ -303,8 +303,10 @@ func _on_host_pressed() -> void:
 func _on_start_pressed() -> void:
 	if Net and Net.can_start_game():
 		Net.server_start_game()
-	elif host_status:
-		host_status.text = "ต้องมีผู้เล่นอย่างน้อย 2 คน"
+	else:
+	# ปรับข้อความตามต้องการ
+		if has_node("CreateOverlay/Status"):
+			$CreateOverlay/Status.text = "ต้องมีผู้เล่นอย่างน้อย 2 คน"
 
 func _on_cancel_host() -> void:
 	if Net:
@@ -383,3 +385,5 @@ func on_start_button_pressed() -> void:
 		var board := get_tree().get_first_node_in_group("BoardRoot")
 		if board:
 			board.call_deferred("start_match_host")
+
+@export var board_scene_path: String = "res://board.tscn"

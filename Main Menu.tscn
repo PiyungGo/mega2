@@ -1,9 +1,10 @@
-[gd_scene load_steps=21 format=3 uid="uid://cdwng6ow71d1r"]
+[gd_scene load_steps=22 format=3 uid="uid://cdwng6ow71d1r"]
 
 [ext_resource type="Script" uid="uid://obob5trhdmed" path="res://main_menu.gd" id="1_5b7ti"]
 [ext_resource type="AudioStream" uid="uid://b7irlesai8n8v" path="res://780006338.710747 (online-audio-converter.com).mp3" id="2_i5qic"]
 [ext_resource type="Texture2D" uid="uid://2tku10ksyi7n" path="res://Gemini_Generated_Image_1hkgc71hkgc71hkg.png" id="2_xwd2w"]
 [ext_resource type="Script" uid="uid://h22brvio2otb" path="res://audio_control.gd" id="3_i5qic"]
+[ext_resource type="Texture2D" uid="uid://ytw17afcyuxw" path="res://MONEY.png" id="3_wlsky"]
 [ext_resource type="Script" uid="uid://70urtdgl72k1" path="res://fullscreen_control.gd" id="4_12kdf"]
 [ext_resource type="AudioStream" uid="uid://du8hotevt6e6d" path="res://button-press-382713.mp3" id="6_wfgb2"]
 
@@ -242,7 +243,13 @@ text = "ออก"
 [node name="Label" type="Label" parent="Main button"]
 layout_mode = 2
 
+[node name="Money" type="Sprite2D" parent="Main button/Label"]
+position = Vector2(220, -576.5)
+scale = Vector2(0.283029, 0.283029)
+texture = ExtResource("3_wlsky")
+
 [node name="Label" type="Label" parent="Main button/Label"]
+visible = false
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -1639,7 +1646,6 @@ disabled = true
 text = "เริ่มเกม"
 
 [node name="JoinOverlay" type="Panel" parent="."]
-visible = false
 layout_mode = 1
 offset_left = 687.0
 offset_top = 344.0
@@ -1652,7 +1658,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_bcalf")
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
-theme_override_constants/separation = 35
+theme_override_constants/separation = 45
 
 [node name="Label" type="Label" parent="JoinOverlay/VBox"]
 layout_mode = 2
@@ -1665,10 +1671,10 @@ layout_mode = 2
 [node name="LAN" type="HBoxContainer" parent="JoinOverlay/VBox/Tabs"]
 custom_minimum_size = Vector2(161.855, 36.825)
 layout_mode = 0
-offset_left = -28.4038
-offset_top = 55.6153
-offset_right = 133.451
-offset_bottom = 92.4403
+offset_left = -30.0945
+offset_top = 61.7306
+offset_right = 131.76
+offset_bottom = 98.5556
 theme_override_constants/separation = 20
 alignment = 1
 

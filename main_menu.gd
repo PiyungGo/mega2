@@ -71,7 +71,7 @@ extends Control
 @onready var click_sfx: AudioStreamPlayer = get_node_or_null("ClickSfx")
 
 func _on_Button5_pressed() -> void:
-	open_join_overlay()
+    open_join_overlay()
 
 
 # ====== สถานะ ======
@@ -79,85 +79,85 @@ var _panels: Array[Panel] = []
 var _current_idx := 0
 
 func _ready() -> void:
-	main_button.visible = true
-	option.visible = false
+    main_button.visible = true
+    option.visible = false
 
-	# <<< ขยายให้ครบถึง Panel10 >>>
-	_panels = [panel2, panel_3, panel_4, panel_5, panel_6, panel_7, panel_8, panel_9, panel_10]
-	for p in _panels:
-		if p:
-			p.visible = false
-	if create_ui: create_ui.hide()
-	if join_ui:   join_ui.hide()
+    # <<< ขยายให้ครบถึง Panel10 >>>
+    _panels = [panel2, panel_3, panel_4, panel_5, panel_6, panel_7, panel_8, panel_9, panel_10]
+    for p in _panels:
+        if p:
+            p.visible = false
+    if create_ui: create_ui.hide()
+    if join_ui:   join_ui.hide()
 
-	# ปุ่มใน overlay
-	if host_btn and not host_btn.pressed.is_connected(_on_host_pressed):
-		host_btn.pressed.connect(_on_host_pressed)
-	if local_btn and not local_btn.pressed.is_connected(_on_local_pressed):
-		local_btn.pressed.connect(_on_local_pressed)
-	if start_btn and not start_btn.pressed.is_connected(_on_start_pressed):
-		start_btn.pressed.connect(_on_start_pressed)
-	if cancel_host and not cancel_host.pressed.is_connected(_on_cancel_host):
-		cancel_host.pressed.connect(_on_cancel_host)
+    # ปุ่มใน overlay
+    if host_btn and not host_btn.pressed.is_connected(_on_host_pressed):
+        host_btn.pressed.connect(_on_host_pressed)
+    if local_btn and not local_btn.pressed.is_connected(_on_local_pressed):
+        local_btn.pressed.connect(_on_local_pressed)
+    if start_btn and not start_btn.pressed.is_connected(_on_start_pressed):
+        start_btn.pressed.connect(_on_start_pressed)
+    if cancel_host and not cancel_host.pressed.is_connected(_on_cancel_host):
+        cancel_host.pressed.connect(_on_cancel_host)
 
-	if scan_btn and not scan_btn.pressed.is_connected(_on_scan_pressed):
-		scan_btn.pressed.connect(_on_scan_pressed)
-	if join_btn and not join_btn.pressed.is_connected(_on_join_ip_pressed):
-		join_btn.pressed.connect(_on_join_ip_pressed)
-	if cancel_join and not cancel_join.pressed.is_connected(_on_cancel_join):
-		cancel_join.pressed.connect(_on_cancel_join)
+    if scan_btn and not scan_btn.pressed.is_connected(_on_scan_pressed):
+        scan_btn.pressed.connect(_on_scan_pressed)
+    if join_btn and not join_btn.pressed.is_connected(_on_join_ip_pressed):
+        join_btn.pressed.connect(_on_join_ip_pressed)
+    if cancel_join and not cancel_join.pressed.is_connected(_on_cancel_join):
+        cancel_join.pressed.connect(_on_cancel_join)
 
-	# ฟัง event จาก Net.gd (autoload)
-	if Net:
-		if not Net.lobby_updated.is_connected(_on_lobby_updated):
-			Net.lobby_updated.connect(_on_lobby_updated)
-		if not Net.status_changed.is_connected(_on_net_status):
-			Net.status_changed.connect(_on_net_status)
-		if not Net.connected.is_connected(_on_net_connected):
-			Net.connected.connect(_on_net_connected)
-		if not Net.connection_failed.is_connected(_on_net_failed):
-			Net.connection_failed.connect(_on_net_failed)
-		if not Net.disconnected.is_connected(_on_net_disconnected):
-			Net.disconnected.connect(_on_net_disconnected)
+    # ฟัง event จาก Net.gd (autoload)
+    if Net:
+        if not Net.lobby_updated.is_connected(_on_lobby_updated):
+            Net.lobby_updated.connect(_on_lobby_updated)
+        if not Net.status_changed.is_connected(_on_net_status):
+            Net.status_changed.connect(_on_net_status)
+        if not Net.connected.is_connected(_on_net_connected):
+            Net.connected.connect(_on_net_connected)
+        if not Net.connection_failed.is_connected(_on_net_failed):
+            Net.connection_failed.connect(_on_net_failed)
+        if not Net.disconnected.is_connected(_on_net_disconnected):
+            Net.disconnected.connect(_on_net_disconnected)
 
-	_connect_buttons()
-	_wire_click_sounds()
+    _connect_buttons()
+    _wire_click_sounds()
 
 # ─────────────────────────────────────────────────────────────
 # ต่อสัญญาณปุ่มทั้งหมด
 func _connect_buttons() -> void:
-	# Next → ไปหน้าถัดไป
-	if next_button   and not next_button.pressed.is_connected(_go_p3):  next_button.pressed.connect(_go_p3)
-	if next_button_1 and not next_button_1.pressed.is_connected(_go_p4): next_button_1.pressed.connect(_go_p4)
-	if next_button_2 and not next_button_2.pressed.is_connected(_go_p5): next_button_2.pressed.connect(_go_p5)
-	if next_button_3 and not next_button_3.pressed.is_connected(_go_p6): next_button_3.pressed.connect(_go_p6)
-	if next_button_4 and not next_button_4.pressed.is_connected(_go_p7): next_button_4.pressed.connect(_go_p7)
-	if next_button_5 and not next_button_5.pressed.is_connected(_go_p8): next_button_5.pressed.connect(_go_p8)
-	if next_button_6 and not next_button_6.pressed.is_connected(_go_p9): next_button_6.pressed.connect(_go_p9)
-	if next_button_7 and not next_button_7.pressed.is_connected(_go_p10): next_button_7.pressed.connect(_go_p10)
-	# Panel10 ปกติไม่มี next_button_8 (ถ้ามีและอยากต่อเพิ่มค่อยใส่)
+    # Next → ไปหน้าถัดไป
+    if next_button   and not next_button.pressed.is_connected(_go_p3):  next_button.pressed.connect(_go_p3)
+    if next_button_1 and not next_button_1.pressed.is_connected(_go_p4): next_button_1.pressed.connect(_go_p4)
+    if next_button_2 and not next_button_2.pressed.is_connected(_go_p5): next_button_2.pressed.connect(_go_p5)
+    if next_button_3 and not next_button_3.pressed.is_connected(_go_p6): next_button_3.pressed.connect(_go_p6)
+    if next_button_4 and not next_button_4.pressed.is_connected(_go_p7): next_button_4.pressed.connect(_go_p7)
+    if next_button_5 and not next_button_5.pressed.is_connected(_go_p8): next_button_5.pressed.connect(_go_p8)
+    if next_button_6 and not next_button_6.pressed.is_connected(_go_p9): next_button_6.pressed.connect(_go_p9)
+    if next_button_7 and not next_button_7.pressed.is_connected(_go_p10): next_button_7.pressed.connect(_go_p10)
+    # Panel10 ปกติไม่มี next_button_8 (ถ้ามีและอยากต่อเพิ่มค่อยใส่)
 
-	# Back เล็กซ้ายล่าง → ย้อนหน้า (Panel2 ไม่มีหน้าก่อนหน้า: ให้กดไม่ได้)
-	if back_button   and not back_button.pressed.is_connected(_noop):         back_button.pressed.connect(_noop)
-	if back_button_1 and not back_button_1.pressed.is_connected(_back_to_p2): back_button_1.pressed.connect(_back_to_p2)
-	if back_button_2 and not back_button_2.pressed.is_connected(_back_to_p3): back_button_2.pressed.connect(_back_to_p3)
-	if back_button_3 and not back_button_3.pressed.is_connected(_back_to_p4): back_button_3.pressed.connect(_back_to_p4)
-	if back_button_4 and not back_button_4.pressed.is_connected(_back_to_p5): back_button_4.pressed.connect(_back_to_p5)
-	if back_button_5 and not back_button_5.pressed.is_connected(_back_to_p6): back_button_5.pressed.connect(_back_to_p6)
-	if back_button_6 and not back_button_6.pressed.is_connected(_back_to_p7): back_button_6.pressed.connect(_back_to_p7)
-	if back_button_7 and not back_button_7.pressed.is_connected(_back_to_p8): back_button_7.pressed.connect(_back_to_p8)
-	if back_button_8 and not back_button_8.pressed.is_connected(_back_to_p9): back_button_8.pressed.connect(_back_to_p9)
+    # Back เล็กซ้ายล่าง → ย้อนหน้า (Panel2 ไม่มีหน้าก่อนหน้า: ให้กดไม่ได้)
+    if back_button   and not back_button.pressed.is_connected(_noop):         back_button.pressed.connect(_noop)
+    if back_button_1 and not back_button_1.pressed.is_connected(_back_to_p2): back_button_1.pressed.connect(_back_to_p2)
+    if back_button_2 and not back_button_2.pressed.is_connected(_back_to_p3): back_button_2.pressed.connect(_back_to_p3)
+    if back_button_3 and not back_button_3.pressed.is_connected(_back_to_p4): back_button_3.pressed.connect(_back_to_p4)
+    if back_button_4 and not back_button_4.pressed.is_connected(_back_to_p5): back_button_4.pressed.connect(_back_to_p5)
+    if back_button_5 and not back_button_5.pressed.is_connected(_back_to_p6): back_button_5.pressed.connect(_back_to_p6)
+    if back_button_6 and not back_button_6.pressed.is_connected(_back_to_p7): back_button_6.pressed.connect(_back_to_p7)
+    if back_button_7 and not back_button_7.pressed.is_connected(_back_to_p8): back_button_7.pressed.connect(_back_to_p8)
+    if back_button_8 and not back_button_8.pressed.is_connected(_back_to_p9): back_button_8.pressed.connect(_back_to_p9)
 
-	# Back กลาง (Back2) → กลับเมนูหลัก
-	if back2_p2  and not back2_p2.pressed.is_connected(_close_guide):  back2_p2.pressed.connect(_close_guide)
-	if back2_p3  and not back2_p3.pressed.is_connected(_close_guide):  back2_p3.pressed.connect(_close_guide)
-	if back2_p4  and not back2_p4.pressed.is_connected(_close_guide):  back2_p4.pressed.connect(_close_guide)
-	if back2_p5  and not back2_p5.pressed.is_connected(_close_guide):  back2_p5.pressed.connect(_close_guide)
-	if back2_p6  and not back2_p6.pressed.is_connected(_close_guide):  back2_p6.pressed.connect(_close_guide)
-	if back2_p7  and not back2_p7.pressed.is_connected(_close_guide):  back2_p7.pressed.connect(_close_guide)
-	if back2_p8  and not back2_p8.pressed.is_connected(_close_guide):  back2_p8.pressed.connect(_close_guide)
-	if back2_p9  and not back2_p9.pressed.is_connected(_close_guide):  back2_p9.pressed.connect(_close_guide)
-	if back2_p10 and not back2_p10.pressed.is_connected(_close_guide): back2_p10.pressed.connect(_close_guide)
+    # Back กลาง (Back2) → กลับเมนูหลัก
+    if back2_p2  and not back2_p2.pressed.is_connected(_close_guide):  back2_p2.pressed.connect(_close_guide)
+    if back2_p3  and not back2_p3.pressed.is_connected(_close_guide):  back2_p3.pressed.connect(_close_guide)
+    if back2_p4  and not back2_p4.pressed.is_connected(_close_guide):  back2_p4.pressed.connect(_close_guide)
+    if back2_p5  and not back2_p5.pressed.is_connected(_close_guide):  back2_p5.pressed.connect(_close_guide)
+    if back2_p6  and not back2_p6.pressed.is_connected(_close_guide):  back2_p6.pressed.connect(_close_guide)
+    if back2_p7  and not back2_p7.pressed.is_connected(_close_guide):  back2_p7.pressed.connect(_close_guide)
+    if back2_p8  and not back2_p8.pressed.is_connected(_close_guide):  back2_p8.pressed.connect(_close_guide)
+    if back2_p9  and not back2_p9.pressed.is_connected(_close_guide):  back2_p9.pressed.connect(_close_guide)
+    if back2_p10 and not back2_p10.pressed.is_connected(_close_guide): back2_p10.pressed.connect(_close_guide)
 
 # ─────────────────────────────────────────────────────────────
 # เมนูหลัก
@@ -165,23 +165,23 @@ func _connect_buttons() -> void:
 
 
 func _on_setting_pressed() -> void:
-	main_button.visible = false
-	option.visible = true
+    main_button.visible = false
+    option.visible = true
 
 func _on_exit_pressed() -> void:
-	# ปุ่ม “ออก” ในเมนูหลัก — ปิดเกมทั้งหมด
-	get_tree().quit()
+    # ปุ่ม “ออก” ในเมนูหลัก — ปิดเกมทั้งหมด
+    get_tree().quit()
 
 func _on_back_option_pressed() -> void:
-	option.visible = false
-	_close_guide()
+    option.visible = false
+    _close_guide()
 
 # ─────────────────────────────────────────────────────────────
 # เปิดคู่มือ
 func _on_guide_pressed() -> void:
-	main_button.visible = false
-	option.visible = false
-	_show_panel(panel2)
+    main_button.visible = false
+    option.visible = false
+    _show_panel(panel2)
 
 # Next
 func _go_p3()  -> void: _show_panel(panel_3)
@@ -208,38 +208,38 @@ func _noop() -> void: pass
 
 # ปิดคู่มือ → เมนูหลัก
 func _close_guide() -> void:
-	for p in _panels:
-		if p:
-			p.visible = false
-	main_button.visible = true
-	option.visible = false
+    for p in _panels:
+        if p:
+            p.visible = false
+    main_button.visible = true
+    option.visible = false
 
 # helper: แสดง panel เป้าหมาย
 func _show_panel(target: Panel) -> void:
-	for i in _panels.size():
-		var show := (_panels[i] == target)
-		if _panels[i]:
-			_panels[i].visible = show
-		if show:
-			_current_idx = i
+    for i in _panels.size():
+        var show := (_panels[i] == target)
+        if _panels[i]:
+            _panels[i].visible = show
+        if show:
+            _current_idx = i
 
-	# จัด z และเปิด/ปิด Back เล็กของหน้าแรก
-	if target and target is Control:
-		target.move_to_front()
-	if back_button:
-		back_button.disabled = (_current_idx == 0) # หน้าแรกกดไม่ได้
+    # จัด z และเปิด/ปิด Back เล็กของหน้าแรก
+    if target and target is Control:
+        target.move_to_front()
+    if back_button:
+        back_button.disabled = (_current_idx == 0) # หน้าแรกกดไม่ได้
 
 # ─────────────────────────────────────────────────────────────
 # เสียงคลิก
 func _wire_click_sounds() -> void:
-	for b in get_tree().get_nodes_in_group("ui_click"):
-		if b is Button and not b.pressed.is_connected(_on_any_button_pressed):
-			b.pressed.connect(_on_any_button_pressed.bind(b))
+    for b in get_tree().get_nodes_in_group("ui_click"):
+        if b is Button and not b.pressed.is_connected(_on_any_button_pressed):
+            b.pressed.connect(_on_any_button_pressed.bind(b))
 
 func _on_any_button_pressed(_btn: Button) -> void:
-	if click_sfx and click_sfx.stream:
-		if click_sfx.playing: click_sfx.stop()
-		click_sfx.play()
+    if click_sfx and click_sfx.stream:
+        if click_sfx.playing: click_sfx.stop()
+        click_sfx.play()
 
 # ======== Multiplayer Overlays ========
 @onready var create_ui := $CreateOverlay
@@ -263,127 +263,127 @@ func _on_any_button_pressed(_btn: Button) -> void:
 # ===== เปิด overlay จากปุ่มเมนูหลัก =====
 # ต่อปุ่มเมนูหลักของคุณให้มาเรียก 2 ฟังก์ชันนี้ (ผ่าน Inspector หรือโค้ด)
 func open_create_overlay() -> void:
-	if create_ui:
-		create_ui.show()
-	if join_ui:
-		join_ui.hide()
-	if host_status:
-		host_status.text = ""
-	if main_button:
-		main_button.hide()
+    if create_ui:
+        create_ui.show()
+    if join_ui:
+        join_ui.hide()
+    if host_status:
+        host_status.text = ""
+    if main_button:
+        main_button.hide()
 
 func open_join_overlay() -> void:
-	if join_ui:
-		join_ui.show()
-	if create_ui:
-		create_ui.hide()
-	if join_status:
-		join_status.text = "กำลังค้นหา..."
-	if main_button:
-		main_button.hide()
+    if join_ui:
+        join_ui.show()
+    if create_ui:
+        create_ui.hide()
+    if join_status:
+        join_status.text = "กำลังค้นหา..."
+    if main_button:
+        main_button.hide()
 
 # ===== Handler: CreateOverlay =====
 func _on_local_pressed() -> void:
-	get_tree().change_scene_to_file("res://board.tscn")  # เล่นออฟไลน์
+    get_tree().change_scene_to_file("res://board.tscn")  # เล่นออฟไลน์
 
 func _on_host_pressed() -> void:
-	if Net:
-		Net.host_server("HOST")
-	if host_status:
-		host_status.text = "กำลังรอผู้เล่นคนอื่น (1/4)"
-	if start_btn:
-		start_btn.disabled = true
-	# (ตัวเลือก) เปิด Beacon LAN ถ้าใช้ LanDiscovery.gd
-	# if not has_node("LanBeacon") and ResourceLoader.exists("res://LanDiscovery.gd"):
-	#     var Beacon = load("res://LanDiscovery.gd").new()
-	#     Beacon.name = "LanBeacon"
-	#     add_child(Beacon)
-	#     Beacon.start_host_beacon()
+    if Net:
+        Net.host_server("HOST")
+    if host_status:
+        host_status.text = "กำลังรอผู้เล่นคนอื่น (1/4)"
+    if start_btn:
+        start_btn.disabled = true
+    # (ตัวเลือก) เปิด Beacon LAN ถ้าใช้ LanDiscovery.gd
+    # if not has_node("LanBeacon") and ResourceLoader.exists("res://LanDiscovery.gd"):
+    #     var Beacon = load("res://LanDiscovery.gd").new()
+    #     Beacon.name = "LanBeacon"
+    #     add_child(Beacon)
+    #     Beacon.start_host_beacon()
 
 func _on_start_pressed() -> void:
-	if Net and Net.can_start_game():
-		Net.server_start_game()
-	else:
-	# ปรับข้อความตามต้องการ
-		if has_node("CreateOverlay/Status"):
-			$CreateOverlay/Status.text = "ต้องมีผู้เล่นอย่างน้อย 2 คน"
+    if Net and Net.can_start_game():
+        Net.server_start_game()
+    else:
+    # ปรับข้อความตามต้องการ
+        if has_node("CreateOverlay/Status"):
+            $CreateOverlay/Status.text = "ต้องมีผู้เล่นอย่างน้อย 2 คน"
 
 func _on_cancel_host() -> void:
-	if Net:
-		Net.leave()
-	if create_ui:
-		create_ui.hide()
-	main_button.show()
+    if Net:
+        Net.leave()
+    if create_ui:
+        create_ui.hide()
+    main_button.show()
 
 # ===== Handler: JoinOverlay =====
 func _on_scan_pressed() -> void:
-	# ค้นหา host เฉพาะ LAN ปกติ (ไม่ใช่ Hamachi)
-	var ip := ""
-	if ResourceLoader.exists("res://LanDiscovery.gd"):
-		var LanDiscovery = load("res://LanDiscovery.gd")
-		ip = LanDiscovery.find_host(1.5)
-	if ip == "":
-		if join_status:
-			join_status.text = "ไม่พบโฮสต์ใน LAN — ถ้าใช้ Hamachi ให้กรอก IP ของโฮสต์แล้วกดเข้าร่วม"
-	else:
-		if join_status:
-			join_status.text = "พบโฮสต์: %s — กำลังเชื่อมต่อ..." % ip
-		if Net:
-			Net.join_server(ip, "Player")
+    # ค้นหา host เฉพาะ LAN ปกติ (ไม่ใช่ Hamachi)
+    var ip := ""
+    if ResourceLoader.exists("res://LanDiscovery.gd"):
+        var LanDiscovery = load("res://LanDiscovery.gd")
+        ip = LanDiscovery.find_host(1.5)
+    if ip == "":
+        if join_status:
+            join_status.text = "ไม่พบโฮสต์ใน LAN — ถ้าใช้ Hamachi ให้กรอก IP ของโฮสต์แล้วกดเข้าร่วม"
+    else:
+        if join_status:
+            join_status.text = "พบโฮสต์: %s — กำลังเชื่อมต่อ..." % ip
+        if Net:
+            Net.join_server(ip, "Player")
 
 func _on_join_ip_pressed() -> void:
-	var ip: String = ""
-	if ip_box != null and is_instance_valid(ip_box):
-		ip = ip_box.text.strip_edges()
+    var ip: String = ""
+    if ip_box != null and is_instance_valid(ip_box):
+        ip = ip_box.text.strip_edges()
 
-	if ip == "":
-		if join_status:
-			join_status.text = "กรุณากรอก IP จาก Hamachi ของโฮสต์"
-		return
+    if ip == "":
+        if join_status:
+            join_status.text = "กรุณากรอก IP จาก Hamachi ของโฮสต์"
+        return
 
-	if Net:
-		Net.join_server(ip, "Player")
-	if join_status:
-		join_status.text = "กำลังค้นหา..."
+    if Net:
+        Net.join_server(ip, "Player")
+    if join_status:
+        join_status.text = "กำลังค้นหา..."
 
 
 func _on_cancel_join() -> void:
-	if Net:
-		Net.leave()
-	if join_ui:
-		join_ui.hide()
-	main_button.show()
+    if Net:
+        Net.leave()
+    if join_ui:
+        join_ui.hide()
+    main_button.show()
 
 # ===== Net callbacks =====
 func _on_lobby_updated(_p: Dictionary) -> void:
-	if host_status:
-		host_status.text = "กำลังรอผู้เล่นคนอื่น (%d/4)" % _p.size()
-	if start_btn:
-		start_btn.disabled = not Net.can_start_game()
+    if host_status:
+        host_status.text = "กำลังรอผู้เล่นคนอื่น (%d/4)" % _p.size()
+    if start_btn:
+        start_btn.disabled = not Net.can_start_game()
 
 func _on_net_status(t: String) -> void:
-	if host_status: host_status.text = t
-	if join_status: join_status.text = t
+    if host_status: host_status.text = t
+    if join_status: join_status.text = t
 
 func _on_net_connected() -> void:
-	if join_status: join_status.text = "จับคู่สำเร็จแล้ว"
+    if join_status: join_status.text = "จับคู่สำเร็จแล้ว"
 
 func _on_net_failed() -> void:
-	if join_status: join_status.text = "เชื่อมต่อไม่สำเร็จ"
+    if join_status: join_status.text = "เชื่อมต่อไม่สำเร็จ"
 
 func _on_net_disconnected() -> void:
-	if host_status: host_status.text = ""
-	if join_status: join_status.text = ""
+    if host_status: host_status.text = ""
+    if join_status: join_status.text = ""
 
 
 func _on_button_pressed() -> void:
-	open_create_overlay()
+    open_create_overlay()
 
 # MainMenu.gd
 func on_start_button_pressed() -> void:
-	if multiplayer.is_server():
-		var board := get_tree().get_first_node_in_group("BoardRoot")
-		if board:
-			board.call_deferred("start_match_host")
+    if multiplayer.is_server():
+        var board := get_tree().get_first_node_in_group("BoardRoot")
+        if board:
+            board.call_deferred("start_match_host")
 
 @export var board_scene_path: String = "res://board.tscn"

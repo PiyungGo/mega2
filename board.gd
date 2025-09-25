@@ -233,6 +233,7 @@ var current_turn_peer_id: int = 1
 var _turn_order: Array[int] = []
 var _turn_index: int = 0
 
+
 func _rebuild_turn_order() -> void:
     _turn_order.clear()
     var sides := ["Good", "Call", "Hacker", "Police"]
@@ -299,6 +300,16 @@ func _remove_piece_client(path: NodePath) -> void:
     if n:
         n.queue_free()
 
+func _calc_next_turn() -> int:
+    if _turn_order.is_empty():
+        _rebuild_turn_order()
+        if _turn_order.is_empty():
+            return 1  # กันไว้: ถ้าไม่มีใครเลยให้เซิร์ฟเวอร์(1)
+
+    _turn_index = (_turn_index + 1) % _turn_order.size()
+    return _turn_order[_turn_index]
+
+
 func _broadcast_alive_set() -> void:
     # ถ้าจะใช้งานจริง อาจเก็บรายชื่อ piece path/ID แล้ว rpc ไปให้ client อัปเดต UI
     # ตอนนี้ทำเป็น no-op เพื่อไม่ให้ error
@@ -339,13 +350,13 @@ func _apply_move_server(piece: Node, to_cell: Vector2i) -> void:
     piece_cells[piece] = to_cell
     # ถ้ามีเงิน/เอฟเฟกต์ช่อง ก็อัปเดตที่นี่
 
-@rpc("authority","reliable","call_local")
+@rpc("authority", "reliable", "call_local")
 func _apply_move_client(piece_path: NodePath, target_cell: Vector2i) -> void:
     var piece := get_node_or_null(piece_path)
     if piece == null: return
-    # อัปเดตตำแหน่ง/แอนิเมชันตามระบบของคุณ
+    # ห้ามแก้ state logic ที่นี่ ให้ทำเฉพาะภาพ/อนิเมชัน
     _move_piece_visual_only(piece, target_cell)
-    print("apply on", multiplayer.get_unique_id())
+
 
 func _move_piece_visual_only(piece: Node, target_cell: Vector2i) -> void:
     # ชั่วคราว: ขยับตำแหน่งทันที (ภายหลังค่อยเปลี่ยนเป็น _move_piece_step_by_step())
@@ -362,11 +373,12 @@ func _on_board_click(piece: Node, target_cell: Vector2i) -> void:
     rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
 
 func _try_control(piece: Node, target_cell: Vector2i) -> void:
+    # guard ฝั่งไคลเอนต์
     if not piece.is_multiplayer_authority(): return
     if multiplayer.get_unique_id() != current_turn_peer_id: return
 
     var server_id := 1  # Godot ใช้ 1 เป็น peer เซิร์ฟเวอร์
-    rpc_id(1, "request_move_rpc", piece.get_path(), target_cell)
+    rpc_id(1, "request_move_rpc", piece.get_instance_id(), target_cell)
     print("send to server", multiplayer.get_unique_id())
 
 
@@ -398,18 +410,33 @@ func _is_legal_move(piece: Node, target_cell: Vector2i) -> bool:
 
 # Client → Server
 @rpc("any_peer", "reliable")
-func request_move_rpc(piece_path: NodePath, target_cell: Vector2i) -> void:
+func request_move_rpc(piece_id:int, target_cell:Vector2i) -> void:
     if not multiplayer.is_server(): return
 
-    var piece := get_node_or_null(piece_path)
+    var piece := instance_from_id(piece_id)
     if piece == null: return
 
-    # ผู้ส่งต้องเป็นเจ้าของชิ้น
-    if not _is_sender_author_of(piece): return
-    if not _is_legal_move(piece, target_cell): return
+    # ส่งมาจากใคร
+    var sender := multiplayer.get_remote_sender_id()
 
-    _apply_move_server(piece, target_cell)               # อัปเดต state ฝั่งเซิร์ฟเวอร์
-    rpc("_apply_move_client", piece.get_path(), target_cell)  # กระจายให้ทุกเครื่อง
+    # ต้องเป็น “เจ้าของชิ้น” เท่านั้น
+    if piece.get_multiplayer_authority() != sender:
+        return
+
+    # ต้องเป็น “ตาของ sender” ด้วย
+    if sender != current_turn_peer_id:
+        return
+
+    # ตรวจเงื่อนไขเกม
+    if not _validate_move(piece, target_cell):
+        return
+
+    # ✅ อัปเดต state ฝั่งเซิร์ฟเวอร์เท่านั้น
+    _apply_move_server(piece, target_cell)
+
+    # ✅ บรอดแคสต์ผลไป “ทุกเครื่อง” (รวมเซิร์ฟเวอร์)
+    rpc("_apply_move_client", piece.get_path(), target_cell)
+
     print("server got move from", multiplayer.get_remote_sender_id())
 
 func _is_sender_author_of(piece: Node) -> bool:
@@ -441,6 +468,12 @@ func _assign_players_to_sides() -> void:
         idx += 1
 
 
+func some_place_in_main_menu():
+    var board := get_tree().get_first_node_in_group("BoardRoot")
+    if board and multiplayer.is_server():
+        board._next_turn_server()   # ให้ server ที่บอร์ดคุมลำดับ
+
+
 func _start_server_side_rules() -> void:
     if not multiplayer.is_server():
         return
@@ -451,17 +484,15 @@ func _start_server_side_rules() -> void:
     _rebuild_turn_order()
 
 @rpc("authority", "reliable", "call_local")
-
 func _next_turn_server() -> void:
-    if not multiplayer.is_server():
-        return
-    current_turn_peer_id = _turn_order[_turn_index]
+    if not multiplayer.is_server(): return
+    current_turn_peer_id = _calc_next_turn()
     rpc("_set_turn_client", current_turn_peer_id)
 
 @rpc("authority", "reliable", "call_local")
-func _set_turn_client(peer_id: int) -> void:
+func _set_turn_client(peer_id:int) -> void:
     current_turn_peer_id = peer_id
-    _update_turn_labels()  # ถ้ามีชื่ออื่น เช่น _update_turn_labels_safely ให้เปลี่ยนเป็นของคุณ
+    _update_turn_labels()
 
 
 func can_control_piece(piece: Node) -> bool:
@@ -3922,3 +3953,24 @@ func _broadcast_hit_fx(victim: Sprite2D) -> void:
 
 func _on_settings_btn_pressed() -> void:
     pass # Replace with function body.
+
+func _resolve_owner_peer_for_piece(piece: Node) -> int:
+    if piece == null:
+        return 1  # กัน null ให้ server เป็นเจ้าของ
+    # ถ้ามีเมตา owner เฉพาะชิ้น ใช้อันนั้นก่อน
+    if piece.has_meta("owner_peer_id"):
+        return int(piece.get_meta("owner_peer_id"))
+    var side := _side_from_piece_name(piece.name)
+    return int(players_peer_map.get(side, 0))  # 0 = ไม่มีเจ้าของ ให้ไป fallback เป็น server ตอน set
+        
+func _resolve_owner_peer_for_piece_name(piece_name: String) -> int:
+    var side := _side_from_piece_name(piece_name)
+    return int(players_peer_map.get(side, 0))
+    
+func _assign_piece_authority() -> void:
+    if not multiplayer.is_server():
+        return
+    for piece in $Pieces.get_children():
+        var pid: int = _resolve_owner_peer_for_piece(piece)     # ← ใช้ตัวที่เพิ่งเพิ่ม
+        piece.set_multiplayer_authority(1 if pid == 0 else pid) # 0 = ไม่มีเจ้าของ → server(1)
+        print(piece.name, " -> owner peer = ", piece.get_multiplayer_authority())
